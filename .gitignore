@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Node (apps/web, added in Sprint 2)
+node_modules/
+.next/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
