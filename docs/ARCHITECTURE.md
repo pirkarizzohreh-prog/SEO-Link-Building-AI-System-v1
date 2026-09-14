@@ -88,16 +88,23 @@
 
 ### در MVP هست:
 - CRUD کامل: Projects، Target Pages، Anchor Bank، Blog Platforms، Campaigns
-- Pipeline خودکار AI: Keyword Intelligence → Topic Generator → Article Writer → SEO Auditor
+- **Project Knowledge Base**: تنظیم برند/صنعت/لحن/قوانین هر پروژه، تزریق‌شده به همه‌ی ایجنت‌های زیر
+- **Competitor Intelligence**: ثبت رقبا + تحلیل صفحات آن‌ها + استخراج Content Gap
+- Pipeline خودکار AI: Keyword Intelligence → Topic Generator → **Content Brief Generator** → Article Writer → SEO Auditor
 - کنترل توزیع انکر (Exact/Partial/Semantic/Brand) به‌صورت خودکار طبق نسبت ۳۰/۳۵/۲۰/۱۵
-- مرحله تأیید انسانی (Human-in-the-loop) روی موضوعات و مقالات قبل از انتشار
+- مرحله تأیید انسانی (Human-in-the-loop) روی موضوعات، بریف محتوایی و مقالات قبل از انتشار
 - **انتشار نیمه‌خودکار (Manual Publish)**: تولید بسته آماده انتشار (Title/Content/Anchor/URL/Category) برای کپی-پیست دستی در وبلاگ + ثبت وضعیت و URL نهایی
+- **Internal Link Suggestion**: تحلیل مستقلِ صفحات هدف هر پروژه برای پیشنهاد لینک‌دهی داخلی سایت (جدا از پایپ‌لاین گست‌پست)
 - گزارش‌گیری پایه: تعداد لینک ساخته‌شده، وضعیت هر صفحه هدف، توزیع واقعی Anchor، لیست URLهای منتشرشده
 - لاگ کامل هر فراخوانی AI (پرامپت/پاسخ/توکن/هزینه تقریبی) برای شفافیت هزینه
+
+جزئیات کامل این ۴ قابلیت (Competitor Intelligence، Content Brief Generator، Internal Link Suggestion، Project Knowledge Base) در [`DATABASE_SCHEMA.md`](./DATABASE_SCHEMA.md)، [`API_SPEC.md`](./API_SPEC.md) و [`AI_WORKFLOW.md`](./AI_WORKFLOW.md) آمده است.
 
 ### در MVP نیست (فاز ۲+):
 - اتوماسیون کامل انتشار با Playwright (Login/Post/Publish خودکار روی وبلاگ‌ها)
 - تشخیص شباهت پیشرفته مقالات با embedding vector (در MVP یک نسخه ساده‌تر با PostgreSQL Full-Text/تشابه n-gram استفاده می‌شود)
+- **کرال کامل سایت** برای Internal Link Suggestion (در MVP فقط صفحات ثبت‌شده در Target Pages تحلیل می‌شوند، نه کل سایت)
+- **fetch پیشرفته/رندر جاوااسکریپت** برای Competitor Intelligence (در MVP fetch ساده HTTP؛ سایت‌های کاملاً JS-rendered ممکن است نیاز به headless browser در فاز بعد داشته باشند)
 - چند‌مستأجری واقعی (Multi-tenant SaaS برای مشتریان خارجی)
 - اعلان‌ها (Slack/Email notifications)، داشبورد تحلیلی پیشرفته، اتصال به Google Search Console
 - مدیریت نقش‌های پیچیده و لاگ حسابرسی کامل (Audit Trail کامل UI)

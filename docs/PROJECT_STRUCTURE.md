@@ -18,15 +18,22 @@ seo-link-building-ai-system/
 │   │   │   │   └── session.py
 │   │   │   ├── models/               # مدل‌های SQLAlchemy (۱ فایل به ازای هر جدول دیتابیس)
 │   │   │   │   ├── project.py
+│   │   │   │   ├── project_knowledge_base.py   # جدید
 │   │   │   │   ├── target_page.py
 │   │   │   │   ├── keyword.py
+│   │   │   │   ├── competitor.py               # جدید
+│   │   │   │   ├── competitor_page.py          # جدید
+│   │   │   │   ├── content_gap.py              # جدید
 │   │   │   │   ├── anchor.py
+│   │   │   │   ├── anchor_usage_log.py
 │   │   │   │   ├── blog_platform.py
 │   │   │   │   ├── campaign.py
 │   │   │   │   ├── topic.py
+│   │   │   │   ├── content_brief.py            # جدید
 │   │   │   │   ├── article.py
 │   │   │   │   ├── seo_audit_result.py
 │   │   │   │   ├── publication.py
+│   │   │   │   ├── internal_link_suggestion.py # جدید
 │   │   │   │   └── ai_job.py
 │   │   │   ├── schemas/              # Pydantic schemas (Request/Response)
 │   │   │   ├── api/
@@ -35,18 +42,24 @@ seo-link-building-ai-system/
 │   │   │   │       └── routers/
 │   │   │   │           ├── auth.py
 │   │   │   │           ├── projects.py
+│   │   │   │           ├── knowledge_base.py       # جدید
 │   │   │   │           ├── target_pages.py
+│   │   │   │           ├── competitors.py          # جدید
+│   │   │   │           ├── content_gaps.py         # جدید
 │   │   │   │           ├── anchors.py
 │   │   │   │           ├── blog_platforms.py
 │   │   │   │           ├── campaigns.py
 │   │   │   │           ├── topics.py
+│   │   │   │           ├── content_briefs.py       # جدید
 │   │   │   │           ├── articles.py
+│   │   │   │           ├── internal_links.py       # جدید
 │   │   │   │           ├── jobs.py
 │   │   │   │           └── reports.py
 │   │   │   ├── services/             # منطق کسب‌وکار، جدا از routerها
 │   │   │   │   ├── campaign_service.py
-│   │   │   │   ├── anchor_service.py     # منطق توزیع ۳۰/۳۵/۲۰/۱۵
-│   │   │   │   ├── seo_audit_service.py  # چک‌های دترمینیستیک
+│   │   │   │   ├── anchor_service.py       # منطق توزیع ۳۰/۳۵/۲۰/۱۵
+│   │   │   │   ├── seo_audit_service.py    # چک‌های دترمینیستیک
+│   │   │   │   ├── competitor_fetch_service.py  # جدید — fetch HTTP ساده صفحات رقیب
 │   │   │   │   └── report_service.py
 │   │   │   ├── ai/
 │   │   │   │   ├── providers/
@@ -54,18 +67,25 @@ seo-link-building-ai-system/
 │   │   │   │   │   ├── openai_provider.py
 │   │   │   │   │   └── claude_provider.py
 │   │   │   │   ├── agents/
+│   │   │   │   │   ├── competitor_intel_agent.py   # جدید
 │   │   │   │   │   ├── keyword_agent.py
 │   │   │   │   │   ├── topic_agent.py
+│   │   │   │   │   ├── brief_agent.py              # جدید
 │   │   │   │   │   ├── writer_agent.py
-│   │   │   │   │   └── auditor_agent.py
+│   │   │   │   │   ├── auditor_agent.py
+│   │   │   │   │   └── internal_link_agent.py      # جدید
 │   │   │   │   └── prompts/              # قالب پرامپت‌ها (Jinja2 / .md)
+│   │   │   │       ├── _kb_context.md          # جدید — partial مشترک Knowledge Base
+│   │   │   │       ├── competitor_analysis.md  # جدید
 │   │   │   │       ├── keyword_intel.md
 │   │   │   │       ├── topic_generator.md
+│   │   │   │       ├── brief_generation.md     # جدید
 │   │   │   │       ├── article_writer.md
-│   │   │   │       └── seo_audit.md
+│   │   │   │       ├── seo_audit.md
+│   │   │   │       └── internal_link_suggestion.md  # جدید
 │   │   │   ├── jobs/
 │   │   │   │   ├── worker.py          # polling loop روی ai_jobs
-│   │   │   │   └── handlers.py        # نگاشت job_type → اجرای agent مربوطه
+│   │   │   │   └── handlers.py        # نگاشت job_type (۸ نوع) → اجرای agent مربوطه
 │   │   │   └── utils/
 │   │   ├── alembic/                   # migrations
 │   │   ├── tests/
@@ -76,8 +96,12 @@ seo-link-building-ai-system/
 │       ├── app/
 │       │   ├── (dashboard)/
 │       │   │   ├── projects/
+│       │   │   │   └── [id]/knowledge-base/   # جدید — فرم تنظیمات برند/لحن/قوانین
+│       │   │   ├── competitors/               # جدید — رقبا + Content Gaps
 │       │   │   ├── campaigns/
+│       │   │   ├── content-briefs/            # جدید — بازبینی/تأیید بریف قبل از نگارش
 │       │   │   ├── articles/          # صفحه‌ی Review/Approve مقالات
+│       │   │   ├── internal-links/            # جدید — گزارش پیشنهادهای لینک داخلی
 │       │   │   ├── blog-platforms/
 │       │   │   └── reports/
 │       │   └── login/
