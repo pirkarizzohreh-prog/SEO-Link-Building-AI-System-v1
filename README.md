@@ -21,18 +21,27 @@ Next.js Dashboard → FastAPI (Service Layer + AI Agent Layer) → PostgreSQL، 
 
 جزئیات کامل در [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-## پایپ‌لاین AI (تأییدشده، نسخه دوم طراحی)
+## پایپ‌لاین AI (تأییدشده، نسخه سوم طراحی — نهایی قبل از Scaffold)
+
+**Advanced Content Status Workflow — ۶ مرحله**: `Idea → Brief → Writing → Audit → Human Review → Published`
 
 ```
-Project Knowledge Base (context ثابت پروژه)
+Project Knowledge Base + Content Templates + Prompt Templates + Link Placement Rules
+        │  (context/config ثابت)
         │
-Competitor Intelligence → Content Gaps
-        │
-Keyword Intelligence → Topic Generator (با Content Gaps)
-        │
-Content Brief Generator   ← نقطه‌ی جدید بین Topic و Article Writer
-        │
-Article Writer → SEO Auditor → (تأیید انسانی) → Publication Manager
+[Idea]   SERP Snapshot → Competitor Intelligence → Content Gaps
+             │
+         Keyword Intelligence → Topic Generator (با Content Gaps) → تأیید انسانی
+             │
+[Brief]  Content Brief Generator (اسکلت از Content Template) → تأیید انسانی
+             │
+[Writing] Article Writer (طبق Link Placement Rules resolve‌شده)
+             │
+[Audit]  SEO Auditor (retry خودکار در صورت شکست)
+             │
+[Human Review]  گیت اجباری Human Approval Layer — هیچ مسیر خودکاری این گیت را دور نمی‌زند
+             │
+[Published]  Publication Manager (MVP: دستی / فاز۲: Playwright)
 
 ── مستقل ──
 Internal Link Suggestion Agent  (لینک‌دهی داخلی سایت، جدا از مقالات لینک‌سازی)

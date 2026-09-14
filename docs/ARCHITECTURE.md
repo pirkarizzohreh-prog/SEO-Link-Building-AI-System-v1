@@ -89,24 +89,27 @@
 ### در MVP هست:
 - CRUD کامل: Projects، Target Pages، Anchor Bank، Blog Platforms، Campaigns
 - **Project Knowledge Base**: تنظیم برند/صنعت/لحن/قوانین هر پروژه، تزریق‌شده به همه‌ی ایجنت‌های زیر
+- **Content Templates & Prompt Templates**: مدیریت انواع محتوا + نسخه‌بندی پرامپت هر ایجنت بدون نیاز به دیپلوی
+- **SERP Snapshot Storage**: ثبت تاریخچه‌ی نتایج جست‌وجو (دستی در MVP) به‌عنوان ورودی Competitor Intelligence
 - **Competitor Intelligence**: ثبت رقبا + تحلیل صفحات آن‌ها + استخراج Content Gap
-- Pipeline خودکار AI: Keyword Intelligence → Topic Generator → **Content Brief Generator** → Article Writer → SEO Auditor
-- کنترل توزیع انکر (Exact/Partial/Semantic/Brand) به‌صورت خودکار طبق نسبت ۳۰/۳۵/۲۰/۱۵
-- مرحله تأیید انسانی (Human-in-the-loop) روی موضوعات، بریف محتوایی و مقالات قبل از انتشار
+- Pipeline خودکار AI («Advanced Content Status Workflow»، ۶ مرحله): **Idea** (Keyword Intelligence → Topic Generator) → **Brief** (Content Brief Generator) → **Writing** (Article Writer) → **Audit** (SEO Auditor) → **Human Review** → **Published**
+- **Link Placement Rules**: نسبت توزیع انکر و محدودیت موقعیت/تعداد لینک به‌صورت قابل‌تنظیم (سطح global/project/campaign) به‌جای مقدار hardcode
+- **Human Approval Layer**: گیت اجباری و غیرقابل‌دورزدن قبل از هرگونه انتشار (دستی یا خودکار) — لاگ کامل در جدول `approvals`
 - **انتشار نیمه‌خودکار (Manual Publish)**: تولید بسته آماده انتشار (Title/Content/Anchor/URL/Category) برای کپی-پیست دستی در وبلاگ + ثبت وضعیت و URL نهایی
 - **Internal Link Suggestion**: تحلیل مستقلِ صفحات هدف هر پروژه برای پیشنهاد لینک‌دهی داخلی سایت (جدا از پایپ‌لاین گست‌پست)
-- گزارش‌گیری پایه: تعداد لینک ساخته‌شده، وضعیت هر صفحه هدف، توزیع واقعی Anchor، لیست URLهای منتشرشده
-- لاگ کامل هر فراخوانی AI (پرامپت/پاسخ/توکن/هزینه تقریبی) برای شفافیت هزینه
+- گزارش‌گیری: تعداد لینک ساخته‌شده، وضعیت هر صفحه هدف، توزیع واقعی Anchor، لیست URLهای منتشرشده + **Pipeline Bottleneck Report** (میانگین زمان توقف در هر یک از ۶ مرحله)
+- لاگ کامل هر فراخوانی AI (پرامپت/پاسخ/توکن/هزینه تقریبی + نسخه‌ی دقیق پرامپت استفاده‌شده) برای شفافیت هزینه و قابلیت audit
 
-جزئیات کامل این ۴ قابلیت (Competitor Intelligence، Content Brief Generator، Internal Link Suggestion، Project Knowledge Base) در [`DATABASE_SCHEMA.md`](./DATABASE_SCHEMA.md)، [`API_SPEC.md`](./API_SPEC.md) و [`AI_WORKFLOW.md`](./AI_WORKFLOW.md) آمده است.
+جزئیات کامل این قابلیت‌ها در [`DATABASE_SCHEMA.md`](./DATABASE_SCHEMA.md)، [`API_SPEC.md`](./API_SPEC.md) و [`AI_WORKFLOW.md`](./AI_WORKFLOW.md) آمده است.
 
 ### در MVP نیست (فاز ۲+):
-- اتوماسیون کامل انتشار با Playwright (Login/Post/Publish خودکار روی وبلاگ‌ها)
+- اتوماسیون کامل انتشار با Playwright (Login/Post/Publish خودکار روی وبلاگ‌ها) — هرچند حتی این مسیر هم پشت Human Approval Layer قرار دارد
 - تشخیص شباهت پیشرفته مقالات با embedding vector (در MVP یک نسخه ساده‌تر با PostgreSQL Full-Text/تشابه n-gram استفاده می‌شود)
 - **کرال کامل سایت** برای Internal Link Suggestion (در MVP فقط صفحات ثبت‌شده در Target Pages تحلیل می‌شوند، نه کل سایت)
 - **fetch پیشرفته/رندر جاوااسکریپت** برای Competitor Intelligence (در MVP fetch ساده HTTP؛ سایت‌های کاملاً JS-rendered ممکن است نیاز به headless browser در فاز بعد داشته باشند)
+- **اتصال زنده به SERP API** (SerpAPI/DataForSEO) برای SERP Snapshot (در MVP ثبت دستی؛ schema از روز اول برای اتصال API آماده است)
 - چند‌مستأجری واقعی (Multi-tenant SaaS برای مشتریان خارجی)
 - اعلان‌ها (Slack/Email notifications)، داشبورد تحلیلی پیشرفته، اتصال به Google Search Console
-- مدیریت نقش‌های پیچیده و لاگ حسابرسی کامل (Audit Trail کامل UI)
+- مدیریت نقش‌های پیچیده‌تر از admin/editor
 
 این مرزبندی دقیقاً همان چیزی است که در سند اولیه هم به‌عنوان "نسخه اول" (Publication Manager) و "نسخه دوم" (اتوماسیون) از هم تفکیک شده بود.

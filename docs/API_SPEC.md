@@ -32,6 +32,20 @@ Auth: `Authorization: Bearer <JWT>` (به‌جز `/auth/login`)
 | GET | `/projects/{id}/knowledge-base` | دریافت (اگر هنوز ساخته نشده، ۴۰۴ یا آبجکت خالی پیش‌فرض) |
 | PUT | `/projects/{id}/knowledge-base` | ایجاد یا به‌روزرسانی کامل (upsert) — `{brand_name, brand_voice_tone, target_audience, industry_context, style_guidelines, forbidden_words[], mandatory_points[], sample_reference_urls[], custom_rules{}}` |
 
+## Content Templates & Prompt Templates *(جدید — Content Templates Module)*
+
+مدیریت انواع محتوا (اسکلت پایه‌ی بریف) و نسخه‌بندی پرامپت هر ایجنت — بدون نیاز به دیپلوی مجدد برای تغییر پرامپت.
+
+| Method | Path | توضیح |
+|---|---|---|
+| GET | `/content-templates` | لیست تمپلیت‌های محتوا (فیلتر `applicable_page_types`) |
+| POST | `/content-templates` | ایجاد تمپلیت جدید `{name, description, applicable_page_types[], default_outline_skeleton, default_word_count}` |
+| PUT | `/content-templates/{id}` | ویرایش |
+| DELETE | `/content-templates/{id}` | حذف (فقط اگر بریفی به آن وابسته نباشد) |
+| GET | `/prompt-templates?agent_type=article_write` | لیست نسخه‌های پرامپت یک ایجنت (تاریخچه کامل) |
+| GET | `/prompt-templates/{agent_type}/active` | دریافت نسخه‌ی فعال فعلی |
+| POST | `/prompt-templates` | ثبت نسخه‌ی جدید `{agent_type, name, template_text}` → خودکار `version+1` و `is_active=true` (نسخه قبلی `is_active=false` می‌شود) |
+
 ## Target Pages
 
 | Method | Path | توضیح |
@@ -55,6 +69,16 @@ Auth: `Authorization: Bearer <JWT>` (به‌جز `/auth/login`)
 | GET | `/target-pages/{id}/content-gaps` | لیست خلأهای محتوایی شناسایی‌شده (فیلتر `status`) |
 | POST | `/content-gaps/{id}/ignore` | نادیده‌گرفتن یک gap (مثلاً نامرتبط تشخیص داده شد) |
 
+## SERP Snapshots *(جدید — SERP Snapshot Storage)*
+
+تاریخچه‌ی نتایج جست‌وجو برای کلیدواژه‌های هر صفحه هدف — پایه‌ی Competitor Intelligence و مبنای مقایسه‌ی تغییر رتبه در طول زمان.
+
+| Method | Path | توضیح |
+|---|---|---|
+| GET | `/target-pages/{id}/serp-snapshots?keyword=...` | تاریخچه‌ی اسنپ‌شات‌های یک کلیدواژه (مرتب بر اساس `fetched_at`) |
+| POST | `/target-pages/{id}/serp-snapshots` | ثبت دستی یک اسنپ‌شات `{keyword, results: [{position, url, title, snippet, domain}], source: "manual"}` — **MVP**: بدون اتصال زنده به SERP API |
+| POST | `/competitor-pages/{id}/link-serp-snapshot` | اتصال یک `competitor_page` موجود به اسنپ‌شاتی که از آن کشف شده (`source_serp_snapshot_id`) |
+
 ## Anchor Bank
 
 | Method | Path | توضیح |
@@ -63,7 +87,7 @@ Auth: `Authorization: Bearer <JWT>` (به‌جز `/auth/login`)
 | POST | `/target-pages/{id}/anchors` | افزودن انکر |
 | PUT | `/anchors/{id}` | ویرایش (مثلاً غیرفعال کردن) |
 | DELETE | `/anchors/{id}` | حذف |
-| GET | `/target-pages/{id}/anchors/distribution` | نسبت فعلی استفاده Exact/Partial/Semantic/Brand در برابر هدف ۳۰/۳۵/۲۰/۱۵ |
+| GET | `/target-pages/{id}/anchors/distribution` | نسبت فعلی استفاده Exact/Partial/Semantic/Brand در برابر هدفِ resolve‌شده از `link_placement_rules` (پیش‌فرض ۳۰/۳۵/۲۰/۱۵، قابل override در سطح پروژه/کمپین) |
 
 ## Blog Platforms
 
@@ -74,27 +98,39 @@ Auth: `Authorization: Bearer <JWT>` (به‌جز `/auth/login`)
 | PUT | `/blog-platforms/{id}` | ویرایش (وضعیت، دسته‌بندی پیش‌فرض) |
 | DELETE | `/blog-platforms/{id}` | حذف |
 
+## Link Placement Rules *(جدید — Link Placement Rules)*
+
+قوانین کمپین (نسبت انکر، محدودیت موقعیت لینک، سقف انتشار در هر وبلاگ...) به‌صورت قابل‌تنظیم در سه سطح `global`/`project`/`campaign`.
+
+| Method | Path | توضیح |
+|---|---|---|
+| GET | `/link-placement-rules/resolve?campaign_id=...` | قانون نهایی resolve‌شده برای یک کمپین (campaign → project → global) |
+| GET | `/link-placement-rules?scope=project&scope_id=1` | لیست قوانین ثبت‌شده در یک سطح |
+| POST | `/link-placement-rules` | ایجاد قانون جدید `{scope, scope_id, anchor_distribution, link_position_max_words, max_outbound_links, max_links_per_blog_per_month, min_days_between_links_same_target}` |
+| PUT | `/link-placement-rules/{id}` | ویرایش |
+| DELETE | `/link-placement-rules/{id}` | حذف (برمی‌گردد به سطح عمومی‌تر) |
+
 ## Campaigns
 
 | Method | Path | توضیح |
 |---|---|---|
 | GET | `/campaigns` | لیست (filter بر اساس project_id, status) |
 | POST | `/campaigns` | ایجاد کمپین `{project_id, target_page_id, total_links_target, blog_count, duration_days}` |
-| GET | `/campaigns/{id}` | جزئیات + پیشرفت (چند مقاله published از چند مورد هدف) |
+| GET | `/campaigns/{id}` | جزئیات + پیشرفت (چند مقاله published از چند مورد هدف) + قانون فعال (`link_placement_rules` resolve‌شده) |
 | PUT | `/campaigns/{id}` | ویرایش |
-| POST | `/campaigns/{id}/start` | **شروع Pipeline** → ایجاد `ai_job(type=keyword_intel)` و سپس زنجیره‌ی خودکار تا `topic_gen` |
+| POST | `/campaigns/{id}/start` | **شروع Pipeline** → ایجاد `ai_job(type=keyword_intel)` و سپس زنجیره‌ی خودکار تا `topic_gen`؛ از این نقطه به بعد، `anchor_service` و `article_write` قوانین را از `link_placement_rules` (نه مقدار hardcode) resolve می‌کنند |
 | POST | `/campaigns/{id}/pause` | توقف موقت |
 
-## Topics
+## Topics *(Stage: Idea)*
 
 | Method | Path | توضیح |
 |---|---|---|
 | GET | `/campaigns/{id}/topics` | لیست موضوعات پیشنهادی |
-| POST | `/topics/{id}/approve` | تأیید موضوع → آماده برای تولید بریف |
-| POST | `/topics/{id}/reject` | رد موضوع |
+| POST | `/topics/{id}/approve` | *(به‌روزرسانی)* تأیید موضوع → آماده برای تولید بریف؛ یک رکورد `approvals(approval_type=topic_selection, decision=approved)` + یک رکورد `content_status_history(stage=idea→brief)` ثبت می‌کند |
+| POST | `/topics/{id}/reject` | رد موضوع (`approvals(decision=rejected)`) |
 | POST | `/topics/{id}/generate-brief` | *(جدید، جایگزین فراخوانی مستقیم generate-article)* ایجاد `ai_job(type=brief_generation)` → خروجی یک رکورد `content_briefs` |
 
-## Content Briefs *(جدید — Content Brief Generator)*
+## Content Briefs *(جدید — Content Brief Generator، Stage: Brief)*
 
 بین Topic و Article Writer؛ خروجی این مرحله ورودی اصلی نگارش مقاله می‌شود.
 
@@ -102,21 +138,22 @@ Auth: `Authorization: Bearer <JWT>` (به‌جز `/auth/login`)
 |---|---|---|
 | GET | `/topics/{id}/brief` | دریافت بریف تولیدشده برای این موضوع |
 | PUT | `/content-briefs/{id}` | ویرایش دستی بریف قبل از نگارش (outline، کلیدواژه‌ها، نکات الزامی) |
-| POST | `/content-briefs/{id}/approve` | تأیید بریف → `status=approved` |
-| POST | `/content-briefs/{id}/generate-article` | *(جایگزین مسیر قبلی)* ایجاد `ai_job(type=article_write)` با استفاده از این بریف |
+| POST | `/content-briefs/{id}/approve` | تأیید بریف → `status=approved`؛ ثبت `approvals(approval_type=brief_approval)` + `content_status_history(stage=brief→writing)` |
+| POST | `/content-briefs/{id}/generate-article` | *(جایگزین مسیر قبلی)* ایجاد `ai_job(type=article_write)` با استفاده از این بریف و تمپلیت مرتبط (`content_template_id`، اختیاری) |
 
-## Articles
+## Articles *(Stage: Writing → Audit → Human Review → Published)*
 
 | Method | Path | توضیح |
 |---|---|---|
 | GET | `/campaigns/{id}/articles` | لیست مقالات کمپین با فیلتر status |
-| GET | `/articles/{id}` | جزئیات کامل مقاله + بریف مرتبط + نتایج SEO Audit |
+| GET | `/articles/{id}` | جزئیات کامل مقاله + بریف مرتبط + نتایج SEO Audit + تاریخچه `content_status_history` |
 | PUT | `/articles/{id}` | ویرایش دستی محتوا/عنوان (قبل از انتشار) |
-| POST | `/articles/{id}/audit` | اجرای مجدد `ai_job(type=seo_audit)` |
-| POST | `/articles/{id}/approve` | تغییر status → `approved` |
-| POST | `/articles/{id}/reject` | تغییر status → `rejected` (+ دلیل) |
-| POST | `/articles/{id}/publish` | **MVP (manual)**: ثبت `published_url` + blog_platform به‌صورت دستی؛ **فاز۲ (automated)**: trigger کردن `ai_job(type=publish)` برای Playwright bot |
-| GET | `/articles/{id}/publish-package` | خروجی آماده کپی برای انتشار دستی: `{blog, title, content, anchor, url, category}` |
+| POST | `/articles/{id}/audit` | اجرای مجدد `ai_job(type=seo_audit)` → `status=in_audit` سپس `reviewed`/`needs_human_review` |
+| POST | `/articles/{id}/approve` | *(به‌روزرسانی — Human Approval Layer)* تنها راه تغییر `human_approved=true`؛ ثبت اجباری `approvals(approval_type=pre_publish, decision=approved, decided_by=<user>)` + `content_status_history(stage=human_review→published)`؛ بدون این فراخوانی، `human_approved` همیشه `false` می‌ماند |
+| POST | `/articles/{id}/reject` | تغییر status → `rejected` (+ دلیل)؛ `approvals(decision=rejected)` |
+| POST | `/articles/{id}/publish` | **قبل از اجرا چک می‌کند `human_approved=true`، در غیر این صورت `409 Conflict`.** MVP (manual): ثبت `published_url` دستی؛ فاز۲ (automated): trigger کردن `ai_job(type=publish)` — همان چک روی handler اتوماسیون هم اعمال می‌شود |
+| GET | `/articles/{id}/publish-package` | خروجی آماده کپی برای انتشار دستی: `{blog, title, content, anchor, url, category}` (فقط اگر `human_approved=true`) |
+| GET | `/articles/{id}/status-history` | *(جدید)* تاریخچه‌ی کامل عبور این مقاله از ۶ مرحله (از `content_status_history`) |
 
 ## Internal Link Suggestions *(جدید — Internal Link Suggestion Agent)*
 
@@ -142,6 +179,7 @@ Auth: `Authorization: Bearer <JWT>` (به‌جز `/auth/login`)
 |---|---|---|
 | GET | `/projects/{id}/report` | خلاصه کل پروژه: تعداد لینک ساخته‌شده، صفحات تقویت‌شده |
 | GET | `/campaigns/{id}/report` | گزارش کمپین: Anchor Distribution واقعی، لیست URLهای منتشرشده، نرخ موفقیت audit |
+| GET | `/campaigns/{id}/pipeline-stats` | *(جدید)* میانگین زمان توقف در هر یک از ۶ مرحله (bottleneck analysis)، محاسبه‌شده از `content_status_history` |
 
 ## نمونه Payload — ایجاد کمپین
 
@@ -170,6 +208,40 @@ GET /api/v1/jobs/42
   "tokens_used": 3120,
   "cost_estimate": 0.045,
   "output_payload": { "article_id": 88 }
+}
+```
+
+## نمونه Payload — تعریف Link Placement Rule سطح کمپین
+
+```json
+POST /api/v1/link-placement-rules
+{
+  "scope": "campaign",
+  "scope_id": 12,
+  "anchor_distribution": { "exact": 25, "partial": 40, "semantic": 20, "brand": 15 },
+  "link_position_max_words": 150,
+  "max_outbound_links": 1,
+  "max_links_per_blog_per_month": 2,
+  "min_days_between_links_same_target": 3
+}
+```
+
+## نمونه Payload — تأیید نهایی مقاله (Human Approval Layer)
+
+```json
+POST /api/v1/articles/88/approve
+{
+  "note": "متن و لینک بررسی شد، آماده انتشار است."
+}
+```
+```json
+Response
+{
+  "article_id": 88,
+  "human_approved": true,
+  "human_approved_by": 3,
+  "human_approved_at": "2026-09-14T10:22:00Z",
+  "approval_record_id": 501
 }
 ```
 
