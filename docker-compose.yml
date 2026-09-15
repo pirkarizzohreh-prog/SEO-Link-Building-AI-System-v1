@@ -35,5 +35,27 @@ services:
     volumes:
       - ./apps/api:/app
 
+  web:
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    # Overrides the image's built (production) CMD with the dev server +
+    # a source bind-mount, matching `api`'s --reload above. For an actual
+    # production deploy, drop this `command`/`volumes` pair and the image
+    # built by apps/web/Dockerfile runs `next start` as-is.
+    command: npm run dev
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+
 volumes:
   db_data:

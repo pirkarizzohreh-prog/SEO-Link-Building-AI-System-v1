@@ -3,9 +3,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.topic import Topic
+from app.models.approval import ApprovalDecision, ApprovalType
+from app.models.content_status_history import PipelineStage
+from app.models.topic import Topic, TopicStatus
+from app.models.user import User
+from app.schemas.approval import ActionNote
 from app.schemas.topic import TopicCreate, TopicRead, TopicUpdate
+from app.services.approval_service import record_approval
+from app.services.status_history_service import record_transition
 from app.utils.crud import CRUDBase
 
 router = APIRouter(tags=["Topics"])
@@ -27,7 +34,76 @@ def update_topic(topic_id: int, payload: TopicUpdate, db: Session = Depends(get_
     return crud.update(db, topic_id, payload)
 
 
-# NOTE: POST /topics/{id}/approve and /reject (which also write to
-# `approvals` + `content_status_history`) require a real authenticated
-# user — added in Sprint 2 (Auth). POST /topics/{id}/generate-brief is an
-# AI job, added in Sprint 3.
+@router.post("/topics/{topic_id}/approve", response_model=TopicRead)
+def approve_topic(
+    topic_id: int,
+    payload: ActionNote = ActionNote(),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Idea -> Brief. Human Approval Layer: records who approved it, not
+    just that it happened — see docs/AI_WORKFLOW.md.
+    """
+    topic = crud.get(db, topic_id)
+    from_status = topic.status.value
+    topic.status = TopicStatus.SELECTED
+
+    record_approval(
+        db,
+        entity_table="topics",
+        entity_id=topic.id,
+        approval_type=ApprovalType.TOPIC_SELECTION,
+        decision=ApprovalDecision.APPROVED,
+        decided_by=current_user,
+        note=payload.note,
+    )
+    record_transition(
+        db,
+        entity_table="topics",
+        entity_id=topic.id,
+        stage=PipelineStage.IDEA,
+        from_status=from_status,
+        to_status=topic.status.value,
+        actor=current_user,
+    )
+    db.commit()
+    db.refresh(topic)
+    return topic
+
+
+@router.post("/topics/{topic_id}/reject", response_model=TopicRead)
+def reject_topic(
+    topic_id: int,
+    payload: ActionNote = ActionNote(),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    topic = crud.get(db, topic_id)
+    from_status = topic.status.value
+    topic.status = TopicStatus.REJECTED
+
+    record_approval(
+        db,
+        entity_table="topics",
+        entity_id=topic.id,
+        approval_type=ApprovalType.TOPIC_SELECTION,
+        decision=ApprovalDecision.REJECTED,
+        decided_by=current_user,
+        note=payload.note,
+    )
+    record_transition(
+        db,
+        entity_table="topics",
+        entity_id=topic.id,
+        stage=PipelineStage.REJECTED,
+        from_status=from_status,
+        to_status=topic.status.value,
+        actor=current_user,
+        note=payload.note,
+    )
+    db.commit()
+    db.refresh(topic)
+    return topic
+
+
+# NOTE: POST /topics/{id}/generate-brief is an AI job — Sprint 3.

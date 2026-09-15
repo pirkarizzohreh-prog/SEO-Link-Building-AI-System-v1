@@ -63,6 +63,21 @@ class SeoAuditResultRead(BaseModel):
     created_at: datetime
 
 
+class PublishPackage(BaseModel):
+    """Ready-to-copy payload for the MVP's manual publish flow — see
+    docs/AI_WORKFLOW.md ("Publication Manager", version one).
+    """
+
+    article_id: int
+    suggested_blog_platform_id: int | None = None
+    suggested_blog_platform_name: str | None = None
+    title: str
+    content: str | None = None
+    anchor_text: str
+    target_url: str
+    category: str | None = None
+
+
 class PublicationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

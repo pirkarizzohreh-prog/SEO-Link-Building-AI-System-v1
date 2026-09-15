@@ -1,54 +1,5 @@
-import pytest
-
-
-@pytest.fixture()
-def project(client):
-    return client.post(
-        "/api/v1/projects", json={"project_name": "AEB Water", "website_url": "https://aebwater.com"}
-    ).json()
-
-
-@pytest.fixture()
-def target_page(client, project):
-    resp = client.post(
-        f"/api/v1/projects/{project['id']}/target-pages",
-        json={
-            "title": "Food industry wastewater package",
-            "url": "https://aebwater.com/product/food-wastewater-package/",
-            "main_keyword": "food industry wastewater package",
-            "page_type": "product",
-            "priority": 1,
-        },
-    )
-    assert resp.status_code == 201
-    return resp.json()
-
-
-@pytest.fixture()
-def anchor(client, target_page):
-    resp = client.post(
-        f"/api/v1/target-pages/{target_page['id']}/anchors",
-        json={"anchor_text": "food industry wastewater package", "anchor_type": "exact"},
-    )
-    assert resp.status_code == 201
-    return resp.json()
-
-
-@pytest.fixture()
-def campaign(client, project, target_page):
-    resp = client.post(
-        "/api/v1/campaigns",
-        json={
-            "project_id": project["id"],
-            "target_page_id": target_page["id"],
-            "name": "AEB - Dairy Industry Links",
-            "total_links_target": 20,
-            "blog_count": 10,
-            "duration_days": 60,
-        },
-    )
-    assert resp.status_code == 201
-    return resp.json()
+# `project`, `target_page`, `anchor` and `campaign` fixtures now live in
+# conftest.py (shared with tests/test_approval_flow.py).
 
 
 def test_target_page_and_keyword_crud(client, target_page):

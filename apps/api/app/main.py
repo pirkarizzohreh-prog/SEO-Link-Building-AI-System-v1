@@ -10,12 +10,15 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Permissive in development; tighten to the actual Next.js dashboard origin
-# once Sprint 2 (Auth + Dashboard) deploys it.
+# The dashboard sends its access token as an Authorization header, never a
+# cookie, so allow_credentials stays False — which is what makes a
+# wildcard origin in development safe/spec-compliant in the first place
+# (browsers reject `*` together with credentialed requests). In
+# production, only the configured FRONTEND_ORIGINS are allowed.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.ENV == "development" else [],
-    allow_credentials=True,
+    allow_origins=["*"] if settings.ENV == "development" else settings.FRONTEND_ORIGINS.split(","),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

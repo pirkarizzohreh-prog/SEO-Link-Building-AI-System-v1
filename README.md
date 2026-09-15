@@ -7,12 +7,12 @@
 | Sprint | محتوا | وضعیت |
 |---|---|---|
 | **1** | Backend + Database | ✅ انجام شد — [`apps/api`](apps/api) (FastAPI + SQLAlchemy + Alembic، ۲۵ جدول، CRUD کامل غیر از موارد وابسته به Auth/AI) |
-| 2 | Authentication + Dashboard | برنامه‌ریزی‌شده |
+| **2** | Authentication + Dashboard | ✅ انجام شد — JWT auth + Human Approval Layer در [`apps/api`](apps/api)، داشبورد Next.js در [`apps/web`](apps/web) |
 | 3 | AI Agents | برنامه‌ریزی‌شده |
 | 4 | SEO Audit + Reports | برنامه‌ریزی‌شده |
 | 5 | Automation | برنامه‌ریزی‌شده |
 
-جزئیات مرزبندی دقیق هر Sprint (چه چیزی الان پیاده شده و چه چیزی عمداً بعداً می‌آید) در [`apps/api/README.md`](apps/api/README.md).
+جزئیات مرزبندی دقیق هر Sprint (چه چیزی الان پیاده شده و چه چیزی عمداً بعداً می‌آید) در [`apps/api/README.md`](apps/api/README.md) و [`apps/web/README.md`](apps/web/README.md).
 
 ## مستندات طراحی
 
