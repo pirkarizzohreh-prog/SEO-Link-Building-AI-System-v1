@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/content-templates", label: "تمپلیت‌های محتوا" },
   { href: "/competitors", label: "رقبا" },
   { href: "/internal-links", label: "لینک‌های داخلی" },
+  { href: "/jobs", label: "AI Jobs" },
   { href: "/reports", label: "گزارش‌ها" },
 ];
 

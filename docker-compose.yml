@@ -35,6 +35,29 @@ services:
     volumes:
       - ./apps/api:/app
 
+  worker:
+    build:
+      context: ./apps/api
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://seo:seo@db:5432/seo_link_building}
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    # Same image as `api`, different entrypoint — see app/jobs/worker.py.
+    # Exits immediately if neither OPENAI_API_KEY nor ANTHROPIC_API_KEY is
+    # set in .env; `restart: unless-stopped` will just keep retrying it,
+    # which is fine (a compose-native way to signal "not configured yet")
+    # but worth knowing before you go looking for why jobs never run.
+    command: python -m app.jobs.worker
+    volumes:
+      - ./apps/api:/app
+
   web:
     build:
       context: ./apps/web

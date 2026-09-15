@@ -1,25 +1,17 @@
 from __future__ import annotations
 
-from collections import Counter
-
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.anchor import Anchor, AnchorType
-from app.models.anchor_usage_log import AnchorUsageLog
 from app.schemas.anchor import AnchorCreate, AnchorDistribution, AnchorRead, AnchorUpdate
+from app.services.anchor_service import compute_actual_counts
 from app.services.rules_service import resolve_link_placement_rule
 from app.utils.crud import CRUDBase
 
 router = APIRouter(tags=["Anchor Bank"])
 crud = CRUDBase(Anchor)
-
-# The window (most recent N usages) the ratio is measured over — matches
-# the "per 20 links" wording in the original PRD; the resolved rule only
-# overrides the *target* ratio, not this window size, in Sprint 1.
-DISTRIBUTION_WINDOW = 20
 
 
 @router.get("/target-pages/{target_page_id}/anchors", response_model=list[AnchorRead])
@@ -46,25 +38,20 @@ def delete_anchor(anchor_id: int, db: Session = Depends(get_db)):
 def get_anchor_distribution(target_page_id: int, db: Session = Depends(get_db)):
     """Actual anchor-type usage over the last `DISTRIBUTION_WINDOW` links for
     this target page, against the resolved target ratio (global default
-    30/35/20/15 unless overridden — see `link_placement_rules`).
+    30/35/20/15 unless overridden — see `link_placement_rules`). Uses the
+    same `anchor_service.compute_actual_counts` the Article Writer agent
+    (Sprint 3) calls before picking the next anchor, so this view always
+    matches what the agent actually sees.
     """
     resolved = resolve_link_placement_rule(db)  # no campaign context here -> falls back to global
-    recent = db.scalars(
-        select(AnchorUsageLog.anchor_type)
-        .join(Anchor, AnchorUsageLog.anchor_id == Anchor.id)
-        .where(Anchor.target_page_id == target_page_id)
-        .order_by(AnchorUsageLog.used_at.desc())
-        .limit(DISTRIBUTION_WINDOW)
-    ).all()
-
-    counts = Counter(t.value for t in recent)
+    counts = compute_actual_counts(db, target_page_id)
     total = sum(counts.values()) or 1
-    actual_ratio = {t.value: round(counts.get(t.value, 0) / total * 100, 1) for t in AnchorType}
+    actual_ratio = {t.value: round(counts.get(t, 0) / total * 100, 1) for t in AnchorType}
 
     return AnchorDistribution(
         target_page_id=target_page_id,
-        window_size=len(recent),
+        window_size=sum(counts.values()),
         target_ratio=resolved.anchor_distribution,
-        actual_counts={t.value: counts.get(t.value, 0) for t in AnchorType},
+        actual_counts={t.value: counts.get(t, 0) for t in AnchorType},
         actual_ratio=actual_ratio,
     )

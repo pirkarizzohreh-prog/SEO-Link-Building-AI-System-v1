@@ -8,7 +8,7 @@
 |---|---|---|
 | **1** | Backend + Database | ✅ انجام شد — [`apps/api`](apps/api) (FastAPI + SQLAlchemy + Alembic، ۲۵ جدول، CRUD کامل غیر از موارد وابسته به Auth/AI) |
 | **2** | Authentication + Dashboard | ✅ انجام شد — JWT auth + Human Approval Layer در [`apps/api`](apps/api)، داشبورد Next.js در [`apps/web`](apps/web) |
-| 3 | AI Agents | برنامه‌ریزی‌شده |
+| **3** | AI Agents | ✅ انجام شد — LLM Provider abstraction (OpenAI/Claude)، Job Worker، ۶ ایجنت (Keyword/Topic/Competitor/Brief/Writer/Internal Link) در [`apps/api`](apps/api)؛ دکمه‌های تولید با AI + صفحه AI Jobs در [`apps/web`](apps/web) |
 | 4 | SEO Audit + Reports | برنامه‌ریزی‌شده |
 | 5 | Automation | برنامه‌ریزی‌شده |
 

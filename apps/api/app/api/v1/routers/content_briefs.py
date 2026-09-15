@@ -5,13 +5,16 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models.ai_job import JobType
 from app.models.approval import ApprovalDecision, ApprovalType
 from app.models.content_brief import BriefStatus, ContentBrief
 from app.models.content_status_history import PipelineStage
 from app.models.user import User
 from app.schemas.approval import ActionNote
 from app.schemas.content_brief import ContentBriefCreate, ContentBriefRead, ContentBriefUpdate
+from app.schemas.job import AiJobRead
 from app.services.approval_service import record_approval
+from app.services.job_service import enqueue_job
 from app.services.status_history_service import record_transition
 from app.utils.crud import CRUDBase
 
@@ -75,4 +78,14 @@ def approve_brief(
     return brief
 
 
-# NOTE: POST /content-briefs/{id}/generate-article is an AI job — Sprint 3.
+@router.post("/content-briefs/{brief_id}/generate-article", response_model=AiJobRead, status_code=202)
+def generate_article(brief_id: int, db: Session = Depends(get_db)):
+    brief = crud.get(db, brief_id)
+    if brief.status != BriefStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Content brief {brief_id} must be approved before generating an article from it",
+        )
+    return enqueue_job(
+        db, job_type=JobType.ARTICLE_WRITE, reference_table="content_briefs", reference_id=brief.id
+    )

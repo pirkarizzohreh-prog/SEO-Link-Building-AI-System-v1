@@ -20,8 +20,12 @@ import {
   useCreateArticle,
   useCreateBrief,
   useCreateTopic,
+  useGenerateArticle,
+  useGenerateBrief,
+  usePauseCampaign,
   useRejectTopic,
   useResolvedLinkPlacementRule,
+  useStartCampaign,
   useTopics,
 } from "@/lib/hooks";
 import type { Topic } from "@/lib/types";
@@ -32,29 +36,56 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
   const { data: campaign, isLoading, error } = useCampaign(campaignId);
   const { data: rule } = useResolvedLinkPlacementRule(campaignId);
+  const startCampaign = useStartCampaign();
+  const pauseCampaign = usePauseCampaign();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   if (isLoading) return <Spinner />;
   if (error) return <ErrorBanner message={getErrorMessage(error)} />;
   if (!campaign) return null;
 
+  async function handleStart() {
+    setActionError(null);
+    try {
+      await startCampaign.mutateAsync(campaignId);
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold text-slate-900">{campaign.name}</h1>
-          <StatusBadge status={campaign.status} />
-        </div>
-        <p className="text-sm text-slate-500">
-          هدف: {campaign.total_links_target} لینک · {campaign.blog_count} وبلاگ · {campaign.duration_days} روز
-        </p>
-        {rule && (
-          <p className="mt-1 text-xs text-slate-400">
-            نسبت انکر مؤثر (resolve‌شده از سطح {rule.resolved_from}): Exact {rule.anchor_distribution.exact}٪ ·
-            Partial {rule.anchor_distribution.partial}٪ · Semantic {rule.anchor_distribution.semantic}٪ · Brand{" "}
-            {rule.anchor_distribution.brand}٪
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-slate-900">{campaign.name}</h1>
+            <StatusBadge status={campaign.status} />
+          </div>
+          <p className="text-sm text-slate-500">
+            هدف: {campaign.total_links_target} لینک · {campaign.blog_count} وبلاگ · {campaign.duration_days} روز
           </p>
-        )}
+          {rule && (
+            <p className="mt-1 text-xs text-slate-400">
+              نسبت انکر مؤثر (resolve‌شده از سطح {rule.resolved_from}): Exact {rule.anchor_distribution.exact}٪ ·
+              Partial {rule.anchor_distribution.partial}٪ · Semantic {rule.anchor_distribution.semantic}٪ · Brand{" "}
+              {rule.anchor_distribution.brand}٪
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          {(campaign.status === "planning" || campaign.status === "paused") && (
+            <Button size="sm" onClick={handleStart} isLoading={startCampaign.isPending}>
+              شروع خودکار با AI (Keyword Intelligence)
+            </Button>
+          )}
+          {campaign.status === "in_progress" && (
+            <Button size="sm" variant="secondary" onClick={() => pauseCampaign.mutate(campaignId)}>
+              توقف موقت
+            </Button>
+          )}
+        </div>
       </div>
+      {actionError && <ErrorBanner message={actionError} />}
 
       <TopicsSection campaignId={campaignId} targetPageId={campaign.target_page_id} />
       <ArticlesSection campaignId={campaignId} targetPageId={campaign.target_page_id} />
@@ -154,12 +185,24 @@ function TopicsSection({ campaignId, targetPageId }: { campaignId: number; targe
 }
 
 function BriefPanel({ topic, targetPageId }: { topic: Topic; targetPageId: number }) {
-  const { data: brief, isLoading } = useBrief(topic.id, true);
+  const [polling, setPolling] = useState(false);
+  const { data: brief, isLoading } = useBrief(topic.id, true, { poll: polling });
   const createBrief = useCreateBrief(topic.id);
   const approveBrief = useApproveBrief(topic.id);
+  const generateBrief = useGenerateBrief(topic.id);
   const [heading, setHeading] = useState("");
   const [keyPoint, setKeyPoint] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    setError(null);
+    try {
+      await generateBrief.mutateAsync();
+      setPolling(true);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
 
   if (isLoading) return <Spinner />;
 
@@ -205,25 +248,33 @@ function BriefPanel({ topic, targetPageId }: { topic: Topic; targetPageId: numbe
   }
 
   return (
-    <form onSubmit={handleCreate} className="space-y-2">
-      <p className="text-xs text-slate-400">
-        هنوز بریفی برای این موضوع ثبت نشده (ثبت دستی — تولید خودکار با Content Brief Generator در Sprint 3).
-      </p>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-48 flex-1">
-          <Label>عنوان بخش اول (H2)</Label>
-          <Input required value={heading} onChange={(e) => setHeading(e.target.value)} />
-        </div>
-        <div className="min-w-48 flex-1">
-          <Label>نکته کلیدی</Label>
-          <Input value={keyPoint} onChange={(e) => setKeyPoint(e.target.value)} />
-        </div>
-        <Button type="submit" size="sm" isLoading={createBrief.isPending}>
-          ایجاد بریف
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <p className="text-xs text-slate-400">هنوز بریفی برای این موضوع ثبت نشده.</p>
+        <Button size="sm" onClick={handleGenerate} isLoading={generateBrief.isPending}>
+          تولید بریف با AI
         </Button>
+        {polling && <span className="text-xs text-slate-400">در حال پردازش توسط Worker...</span>}
       </div>
+
+      <form onSubmit={handleCreate} className="space-y-2">
+        <p className="text-xs text-slate-400">یا به‌صورت دستی:</p>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-48 flex-1">
+            <Label>عنوان بخش اول (H2)</Label>
+            <Input required value={heading} onChange={(e) => setHeading(e.target.value)} />
+          </div>
+          <div className="min-w-48 flex-1">
+            <Label>نکته کلیدی</Label>
+            <Input value={keyPoint} onChange={(e) => setKeyPoint(e.target.value)} />
+          </div>
+          <Button type="submit" size="sm" variant="secondary" isLoading={createBrief.isPending}>
+            ایجاد بریف دستی
+          </Button>
+        </div>
+      </form>
       {error && <ErrorBanner message={error} />}
-    </form>
+    </div>
   );
 }
 
@@ -260,6 +311,8 @@ function ArticlesSection({ campaignId, targetPageId }: { campaignId: number; tar
     }
   }
 
+  const approvedBriefTopics = (topics ?? []).filter((t) => t.status === "selected");
+
   return (
     <Card>
       <CardHeader className="flex items-center justify-between">
@@ -269,10 +322,19 @@ function ArticlesSection({ campaignId, targetPageId }: { campaignId: number; tar
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
+        {approvedBriefTopics.length > 0 && (
+          <div className="space-y-2 rounded-md border border-slate-200 p-3">
+            <p className="text-xs font-medium text-slate-600">تولید مقاله با AI از روی بریف تأییدشده:</p>
+            {approvedBriefTopics.map((t) => (
+              <GenerateArticleRow key={t.id} topic={t} campaignId={campaignId} />
+            ))}
+          </div>
+        )}
+
         {showForm && (
           <form onSubmit={handleCreate} className="space-y-3 rounded-md border border-slate-200 p-4">
             <p className="text-xs text-slate-400">
-              ثبت دستی برای تست/fallback؛ تولید خودکار با Article Writer Agent در Sprint 3 اضافه می‌شود.
+              ثبت دستی برای تست/fallback — برای تولید خودکار با AI، از بخش بالا (روی یک بریف تأییدشده) استفاده کنید.
             </p>
             <div>
               <Label>عنوان</Label>
@@ -345,5 +407,34 @@ function ArticlesSection({ campaignId, targetPageId }: { campaignId: number; tar
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function GenerateArticleRow({ topic, campaignId }: { topic: Topic; campaignId: number }) {
+  const { data: brief } = useBrief(topic.id, true);
+  const generateArticle = useGenerateArticle(campaignId);
+  const [triggered, setTriggered] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!brief || brief.status !== "approved") return null;
+
+  async function handleGenerate() {
+    setError(null);
+    try {
+      await generateArticle.mutateAsync(brief!.id);
+      setTriggered(true);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="flex-1 truncate">{topic.title}</span>
+      <Button size="sm" onClick={handleGenerate} isLoading={generateArticle.isPending} disabled={triggered}>
+        {triggered ? "در صف پردازش..." : "تولید مقاله با AI"}
+      </Button>
+      {error && <ErrorBanner message={error} />}
+    </div>
   );
 }

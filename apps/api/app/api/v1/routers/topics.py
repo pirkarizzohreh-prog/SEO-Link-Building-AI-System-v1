@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models.ai_job import JobType
 from app.models.approval import ApprovalDecision, ApprovalType
 from app.models.content_status_history import PipelineStage
 from app.models.topic import Topic, TopicStatus
 from app.models.user import User
 from app.schemas.approval import ActionNote
+from app.schemas.job import AiJobRead
 from app.schemas.topic import TopicCreate, TopicRead, TopicUpdate
 from app.services.approval_service import record_approval
+from app.services.job_service import enqueue_job
 from app.services.status_history_service import record_transition
 from app.utils.crud import CRUDBase
 
@@ -106,4 +109,12 @@ def reject_topic(
     return topic
 
 
-# NOTE: POST /topics/{id}/generate-brief is an AI job — Sprint 3.
+@router.post("/topics/{topic_id}/generate-brief", response_model=AiJobRead, status_code=202)
+def generate_brief(topic_id: int, db: Session = Depends(get_db)):
+    topic = crud.get(db, topic_id)
+    if topic.status != TopicStatus.SELECTED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Topic {topic_id} must be approved (selected) before generating a brief for it",
+        )
+    return enqueue_job(db, job_type=JobType.BRIEF_GENERATION, reference_table="topics", reference_id=topic.id)

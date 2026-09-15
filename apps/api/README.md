@@ -1,4 +1,4 @@
-# API — Sprint 1 + 2 (Backend + Database, Auth)
+# API — Sprint 1 + 2 + 3 (Backend + Database, Auth, AI Agents)
 
 FastAPI + SQLAlchemy + Alembic backend for the SEO Link Building AI Platform.
 See `/docs` at the repo root for the full design (architecture, DB schema,
@@ -52,12 +52,60 @@ API spec, AI workflow).
   rule are now actually resolved (`app/services/rules_service.py`) rather
   than only documented.
 
-**Deliberately not yet in Sprint 2** (see `NOTE:` comments in the
-relevant routers): anything that triggers an LLM call
-(`/campaigns/{id}/start`, `/topics/{id}/generate-brief`,
-`/competitor-pages/{id}/analyze`, ...) and the job worker — Sprint 3; SEO
-audit execution + the `reports` router — Sprint 4; Playwright publish
-automation — Sprint 5.
+## What's in Sprint 3 (AI Agents)
+
+- `app/ai/providers/`: the `BaseLLMClient` interface (`app/ai/providers/
+  base.py`) plus `OpenAIClient` and `ClaudeClient` — OpenAI is picked
+  first if `OPENAI_API_KEY` is set, else `ANTHROPIC_API_KEY`
+  (`app/ai/providers/factory.py`), per docs/ARCHITECTURE.md. Every agent
+  is written against `BaseLLMClient`, never a concrete SDK, so tests
+  inject `tests/fake_llm_client.py` instead of calling a real API.
+- `app/jobs/worker.py`: the actual MVP job queue worker — `python -m
+  app.jobs.worker` polls `ai_jobs` for `status='pending'` (`FOR UPDATE
+  SKIP LOCKED` on Postgres) and runs them one at a time. Exits with a
+  clear error if neither API key is configured, rather than crashing
+  obscurely; `docker-compose.yml`'s `worker` service just keeps retrying
+  it via `restart: unless-stopped`, which is a fine way to represent
+  "not configured yet" for a compose stack.
+- `app/jobs/handlers.py`: dispatches a job to its agent
+  (`app/ai/agents/*.py` — one per docs/AI_WORKFLOW.md agent, sharing the
+  `keyword_agent` / `topic_agent` / `competitor_intel_agent` /
+  `brief_agent` / `writer_agent` / `internal_link_agent` split from
+  `docs/PROJECT_STRUCTURE.md`), owns the job's running→success/failed
+  lifecycle, and chains `keyword_intel` → `topic_gen` automatically on
+  success (docs/AI_WORKFLOW.md's "زنجیره‌ی خودکار") — every step after
+  that needs a human approval in between, so nothing else auto-chains.
+- Prompts are DB-backed (`app/ai/prompts_service.py`): the `.md` files in
+  `app/ai/prompts/` are seed content only, lazily registered as
+  `prompt_templates` version 1 the first time an agent runs with none
+  active yet; from then on the DB row (editable via
+  `POST /prompt-templates`, no redeploy) is the source of truth, exactly
+  as docs/AI_WORKFLOW.md specifies.
+- `app/services/anchor_service.py` (new): `pick_next_anchor` actually
+  implements the anchor-distribution logic the Article Writer needs —
+  Sprint 1/2 only had the read-only `/anchors/distribution` view; both
+  now share `compute_actual_counts`.
+- New enqueue-only endpoints (each just creates an `ai_jobs` row and
+  returns `202` immediately — no LLM call in the request path, per
+  docs/ARCHITECTURE.md's reason for having a job queue at all):
+  `POST /campaigns/{id}/start` (+ `/pause`), `POST /topics/{id}/
+  generate-brief`, `POST /content-briefs/{id}/generate-article`,
+  `POST /competitor-pages/{id}/analyze`, `POST /projects/{id}/
+  analyze-internal-links`. Each enforces the precondition
+  docs/API_SPEC.md implies (e.g. a topic must be `selected` before a
+  brief job can run for it) with a `409` otherwise.
+- `app/ai/safe_fetch.py`: the Competitor Intelligence agent fetches an
+  arbitrary user-submitted URL server-side — a classic SSRF vector — so
+  it resolves the hostname and refuses private/loopback/link-local
+  addresses first. Not a hardened general-purpose fetcher (see the
+  module docstring for what it doesn't cover); revisit before this tool
+  is exposed beyond a trusted internal team.
+
+**Deliberately not yet in Sprint 3**: SEO audit execution (`POST
+/articles/{id}/audit`) + the `reports` router — Sprint 4; Playwright
+publish automation — Sprint 5. The Article Writer's output sits at
+`articles.status=draft` until Sprint 4's auditor (or a human, manually)
+moves it forward.
 
 ## Running locally
 
@@ -82,6 +130,14 @@ export DATABASE_URL="postgresql+psycopg2://seo:seo@localhost:5432/seo_link_build
 
 alembic upgrade head
 uvicorn app.main:app --reload
+```
+
+To actually process AI jobs (in a second terminal, same env vars, plus a
+real API key — nothing works without one):
+
+```bash
+export OPENAI_API_KEY="sk-..."   # or ANTHROPIC_API_KEY
+python -m app.jobs.worker
 ```
 
 ## Tests

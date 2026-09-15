@@ -33,4 +33,5 @@ class ContentBrief(Base, TimestampMixin):
     status: Mapped[BriefStatus] = mapped_column(sa_enum(BriefStatus, "brief_status"), default=BriefStatus.DRAFT)
 
     topic: Mapped["Topic"] = relationship(back_populates="brief")
+    target_page: Mapped["TargetPage"] = relationship()
     articles: Mapped[list["Article"]] = relationship(back_populates="content_brief")

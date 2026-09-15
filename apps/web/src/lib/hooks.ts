@@ -11,6 +11,7 @@ import type {
   BlogPlatform,
   Campaign,
   Competitor,
+  CompetitorPage,
   ContentBrief,
   ContentGap,
   ContentTemplate,
@@ -158,6 +159,25 @@ export function useResolvedLinkPlacementRule(campaignId: number) {
   });
 }
 
+export function useStartCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (campaignId: number) => api.post<AiJob>(`/campaigns/${campaignId}/start`),
+    onSuccess: (_data, campaignId) => {
+      qc.invalidateQueries({ queryKey: ["campaigns", campaignId] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
+export function usePauseCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (campaignId: number) => api.post<Campaign>(`/campaigns/${campaignId}/pause`),
+    onSuccess: (_data, campaignId) => qc.invalidateQueries({ queryKey: ["campaigns", campaignId] }),
+  });
+}
+
 // --- Topics ---
 
 export function useTopics(campaignId: number) {
@@ -196,7 +216,7 @@ export function useRejectTopic(campaignId: number) {
 
 // --- Content Briefs ---
 
-export function useBrief(topicId: number, enabled: boolean) {
+export function useBrief(topicId: number, enabled: boolean, options: { poll?: boolean } = {}) {
   return useQuery({
     queryKey: ["topics", topicId, "brief"],
     queryFn: async () => {
@@ -207,6 +227,10 @@ export function useBrief(topicId: number, enabled: boolean) {
       }
     },
     enabled,
+    // Used right after triggering the Content Brief Generator agent job
+    // (async — see docs/ARCHITECTURE.md) so the panel updates itself once
+    // the worker finishes, instead of the user having to refresh.
+    refetchInterval: (query) => (options.poll && !query.state.data ? 3000 : false),
   });
 }
 
@@ -223,6 +247,25 @@ export function useApproveBrief(topicId: number) {
   return useMutation({
     mutationFn: (briefId: number) => api.post<ContentBrief>(`/content-briefs/${briefId}/approve`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["topics", topicId, "brief"] }),
+  });
+}
+
+export function useGenerateBrief(topicId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<AiJob>(`/topics/${topicId}/generate-brief`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
+  });
+}
+
+export function useGenerateArticle(campaignId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (briefId: number) => api.post<AiJob>(`/content-briefs/${briefId}/generate-article`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "articles"] });
+    },
   });
 }
 
@@ -356,6 +399,33 @@ export function useContentGaps(targetPageId: number) {
   });
 }
 
+export function useCompetitorPages(competitorId: number) {
+  return useQuery({
+    queryKey: ["competitors", competitorId, "pages"],
+    queryFn: () => api.get<CompetitorPage[]>(`/competitors/${competitorId}/pages`),
+  });
+}
+
+export function useCreateCompetitorPage(competitorId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { url: string; target_page_id?: number }) =>
+      api.post<CompetitorPage>(`/competitors/${competitorId}/pages`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["competitors", competitorId, "pages"] }),
+  });
+}
+
+export function useAnalyzeCompetitorPage(competitorId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (pageId: number) => api.post<AiJob>(`/competitor-pages/${pageId}/analyze`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["competitors", competitorId, "pages"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
 // --- Internal Link Suggestions ---
 
 export function useInternalLinkSuggestions(projectId: number) {
@@ -381,6 +451,17 @@ export function useDismissSuggestion(projectId: number) {
   });
 }
 
+export function useAnalyzeInternalLinks(projectId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<AiJob>(`/projects/${projectId}/analyze-internal-links`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects", projectId, "internal-link-suggestions"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
 // --- Users (admin only) ---
 
 export function useUsers() {
@@ -399,5 +480,17 @@ export function useCreateUser() {
 // --- AI Jobs (read-only) ---
 
 export function useAiJobs() {
-  return useQuery({ queryKey: ["jobs"], queryFn: () => api.get<AiJob[]>("/jobs") });
+  return useQuery({
+    queryKey: ["jobs"],
+    queryFn: () => api.get<AiJob[]>("/jobs"),
+    // Poll while anything is still pending/running so the Jobs page (and
+    // any inline "in progress" indicator) reflects the worker's progress
+    // without a manual refresh — jobs are async by design (docs/
+    // ARCHITECTURE.md), so this is the UI's only way to know they're done.
+    refetchInterval: (query) => {
+      const jobs = query.state.data;
+      const stillWorking = jobs?.some((j) => j.status === "pending" || j.status === "running");
+      return stillWorking ? 3000 : false;
+    },
+  });
 }

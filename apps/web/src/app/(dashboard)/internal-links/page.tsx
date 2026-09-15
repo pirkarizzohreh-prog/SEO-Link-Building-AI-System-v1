@@ -8,7 +8,13 @@ import { EmptyState, ErrorBanner, Spinner } from "@/components/ui/feedback";
 import { Label, Select } from "@/components/ui/input";
 import { Table, Td, Th, Thead, Tr } from "@/components/ui/table";
 import { getErrorMessage } from "@/lib/get-error-message";
-import { useApplySuggestion, useDismissSuggestion, useInternalLinkSuggestions, useProjects } from "@/lib/hooks";
+import {
+  useAnalyzeInternalLinks,
+  useApplySuggestion,
+  useDismissSuggestion,
+  useInternalLinkSuggestions,
+  useProjects,
+} from "@/lib/hooks";
 
 export default function InternalLinksPage() {
   const { data: projects } = useProjects();
@@ -19,8 +25,7 @@ export default function InternalLinksPage() {
       <div>
         <h1 className="text-lg font-bold text-slate-900">پیشنهادهای لینک‌دهی داخلی</h1>
         <p className="text-sm text-slate-500">
-          مستقل از پایپ‌لاین گست‌پست — برای بهبود ساختار لینک‌دهی داخلی سایت پروژه. تولید خودکار پیشنهادها با AI در
-          Sprint 3 اضافه می‌شود.
+          مستقل از پایپ‌لاین گست‌پست — برای بهبود ساختار لینک‌دهی داخلی سایت پروژه (docs/AI_WORKFLOW.md).
         </p>
       </div>
 
@@ -48,44 +53,69 @@ function SuggestionsForProject({ projectId }: { projectId: number }) {
   const { data: suggestions, isLoading, error } = useInternalLinkSuggestions(projectId);
   const apply = useApplySuggestion(projectId);
   const dismiss = useDismissSuggestion(projectId);
+  const analyze = useAnalyzeInternalLinks(projectId);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
-  if (isLoading) return <Spinner />;
-  if (error) return <ErrorBanner message={getErrorMessage(error)} />;
-  if (!suggestions?.length) return <EmptyState message="هنوز پیشنهادی برای این پروژه ثبت نشده است." />;
+  async function handleAnalyze() {
+    setAnalyzeError(null);
+    try {
+      await analyze.mutateAsync();
+    } catch (err) {
+      setAnalyzeError(getErrorMessage(err));
+    }
+  }
 
   return (
-    <Table>
-      <Thead>
-        <Tr>
-          <Th>انکر پیشنهادی</Th>
-          <Th>دلیل</Th>
-          <Th>وضعیت</Th>
-          <Th></Th>
-        </Tr>
-      </Thead>
-      <tbody>
-        {suggestions.map((s) => (
-          <Tr key={s.id}>
-            <Td className="font-medium text-slate-900">{s.suggested_anchor}</Td>
-            <Td className="max-w-sm">{s.reason ?? "—"}</Td>
-            <Td>
-              <StatusBadge status={s.status} />
-            </Td>
-            <Td>
-              {s.status === "suggested" && (
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => apply.mutate(s.id)}>
-                    اعمال شد
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => dismiss.mutate(s.id)}>
-                    رد
-                  </Button>
-                </div>
-              )}
-            </Td>
-          </Tr>
-        ))}
-      </tbody>
-    </Table>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={handleAnalyze} isLoading={analyze.isPending}>
+          تحلیل لینک‌های داخلی با AI
+        </Button>
+        <span className="text-xs text-slate-400">
+          نتیجه پس از پردازش توسط Worker در همین لیست ظاهر می‌شود — صفحه AI Jobs را برای وضعیت ببینید.
+        </span>
+      </div>
+      {analyzeError && <ErrorBanner message={analyzeError} />}
+
+      {isLoading && <Spinner />}
+      {error && <ErrorBanner message={getErrorMessage(error)} />}
+      {!isLoading && !suggestions?.length && <EmptyState message="هنوز پیشنهادی برای این پروژه ثبت نشده است." />}
+
+      {suggestions && suggestions.length > 0 && (
+        <Table>
+          <Thead>
+            <Tr>
+              <Th>انکر پیشنهادی</Th>
+              <Th>دلیل</Th>
+              <Th>وضعیت</Th>
+              <Th></Th>
+            </Tr>
+          </Thead>
+          <tbody>
+            {suggestions.map((s) => (
+              <Tr key={s.id}>
+                <Td className="font-medium text-slate-900">{s.suggested_anchor}</Td>
+                <Td className="max-w-sm">{s.reason ?? "—"}</Td>
+                <Td>
+                  <StatusBadge status={s.status} />
+                </Td>
+                <Td>
+                  {s.status === "suggested" && (
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => apply.mutate(s.id)}>
+                        اعمال شد
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => dismiss.mutate(s.id)}>
+                        رد
+                      </Button>
+                    </div>
+                  )}
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </div>
   );
 }

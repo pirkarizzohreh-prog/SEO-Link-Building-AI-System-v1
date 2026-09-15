@@ -11,6 +11,9 @@ from app.core.security import create_access_token, hash_password
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app as fastapi_app
+from app.models.campaign import Campaign
+from app.models.project import Project
+from app.models.target_page import TargetPage
 from app.models.user import User, UserRole
 
 # In-memory SQLite, shared across connections in the same test via
@@ -155,3 +158,45 @@ def campaign(client: TestClient, project: dict, target_page: dict) -> dict:
     )
     assert resp.status_code == 201
     return resp.json()
+
+
+# --- Same pipeline, built directly against the DB session (no HTTP round
+# trip, no auth) — for tests exercising agents/handlers/worker directly
+# rather than the API layer. `db_` prefix distinguishes these ORM-object
+# fixtures from the dict-returning, client-based ones above.
+
+
+@pytest.fixture()
+def db_project(db_session: Session) -> Project:
+    project = Project(project_name="AEB Water", website_url="https://aebwater.com")
+    db_session.add(project)
+    db_session.commit()
+    return project
+
+
+@pytest.fixture()
+def db_target_page(db_session: Session, db_project: Project) -> TargetPage:
+    tp = TargetPage(
+        project_id=db_project.id,
+        title="Food industry wastewater package",
+        url="https://aebwater.com/product/food-wastewater-package/",
+        main_keyword="food industry wastewater package",
+    )
+    db_session.add(tp)
+    db_session.commit()
+    return tp
+
+
+@pytest.fixture()
+def db_campaign(db_session: Session, db_project: Project, db_target_page: TargetPage) -> Campaign:
+    campaign = Campaign(
+        project_id=db_project.id,
+        target_page_id=db_target_page.id,
+        name="AEB - Dairy Industry Links",
+        total_links_target=20,
+        blog_count=10,
+        duration_days=60,
+    )
+    db_session.add(campaign)
+    db_session.commit()
+    return campaign

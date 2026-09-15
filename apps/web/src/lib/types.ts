@@ -213,6 +213,18 @@ export interface Competitor {
   notes: string | null;
 }
 
+export interface CompetitorPage {
+  id: number;
+  competitor_id: number;
+  target_page_id: number | null;
+  url: string;
+  fetched_title: string | null;
+  fetched_headings: string[] | null;
+  fetched_word_count: number | null;
+  top_keywords: string[] | null;
+  analyzed_at: string | null;
+}
+
 export type ContentGapStatus = "new" | "used_in_topic" | "ignored";
 
 export interface ContentGap {
@@ -292,8 +304,14 @@ export interface AiJob {
   status: AiJobStatus;
   reference_table: string;
   reference_id: number;
+  provider: "openai" | "claude" | null;
+  prompt_template_id: number | null;
+  prompt_template_version: number | null;
   tokens_used: number | null;
   cost_estimate: number | null;
   error_message: string | null;
+  retry_count: number;
   created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
 }

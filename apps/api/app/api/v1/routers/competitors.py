@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.models.ai_job import JobType
 from app.models.competitor import Competitor
 from app.models.competitor_page import CompetitorPage
 from app.models.content_gap import ContentGap, GapStatus
@@ -16,6 +17,8 @@ from app.schemas.competitor_intel import (
     ContentGapRead,
     ContentGapUpdate,
 )
+from app.schemas.job import AiJobRead
+from app.services.job_service import enqueue_job
 from app.utils.crud import CRUDBase
 
 router = APIRouter(tags=["Competitor Intelligence"])
@@ -44,14 +47,32 @@ def delete_competitor(competitor_id: int, db: Session = Depends(get_db)):
     competitor_crud.delete(db, competitor_id)
 
 
+@router.get("/competitors/{competitor_id}/pages", response_model=list[CompetitorPageRead])
+def list_competitor_pages(competitor_id: int, db: Session = Depends(get_db)):
+    competitor_crud.get(db, competitor_id)
+    return competitor_page_crud.list(db, limit=200, competitor_id=competitor_id)
+
+
 @router.post("/competitors/{competitor_id}/pages", response_model=CompetitorPageRead, status_code=201)
 def register_competitor_page(competitor_id: int, payload: CompetitorPageCreate, db: Session = Depends(get_db)):
-    """Registers a competitor page for later analysis. The actual fetch +
-    LLM comparison (`POST /competitor-pages/{id}/analyze`) is an AI job,
-    added in Sprint 3.
+    """Registers a competitor page for later analysis via
+    `POST /competitor-pages/{id}/analyze`.
     """
     competitor_crud.get(db, competitor_id)
     return competitor_page_crud.create(db, payload, competitor_id=competitor_id)
+
+
+@router.post("/competitor-pages/{page_id}/analyze", response_model=AiJobRead, status_code=202)
+def analyze_competitor_page(page_id: int, db: Session = Depends(get_db)):
+    page = competitor_page_crud.get(db, page_id)
+    if page.target_page_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This competitor page has no linked target_page_id — set one before analyzing",
+        )
+    return enqueue_job(
+        db, job_type=JobType.COMPETITOR_ANALYSIS, reference_table="competitor_pages", reference_id=page.id
+    )
 
 
 @router.get("/target-pages/{target_page_id}/content-gaps", response_model=list[ContentGapRead])

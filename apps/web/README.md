@@ -1,4 +1,4 @@
-# Web — Sprint 2 (Dashboard)
+# Web — Sprint 2 + 3 (Dashboard, AI Agents UI)
 
 Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 dashboard for the
 SEO Link Building AI Platform. See `/docs` at the repo root for the full
@@ -35,15 +35,31 @@ does (and deliberately doesn't yet).
   registration — see `apps/api/README.md`'s `create-admin` CLI for the
   very first account.
 
-**Deliberately thin / not in Sprint 2:**
-- No dedicated Content Brief page — briefs are created/approved inline
-  from the campaign's topic list is *not* wired up (only the API supports
-  it); approving a brief today means calling `POST /content-briefs/{id}/
-  approve` directly. Worth a small page once Sprint 3 actually generates
-  briefs to review.
-- Competitors/Internal Links pages are list + create only (no analyze/
-  apply-suggestion generation UI) — those actions are AI jobs, Sprint 3.
-- Reports is a placeholder — Sprint 4.
+## What's in Sprint 3 (AI Agents UI)
+
+- Campaign detail: a **"شروع خودکار با AI"** button (`POST /campaigns/{id}/
+  start`) that kicks off Stage: Idea, plus pause/resume.
+- The Content Brief panel (under each `selected` topic) gets a
+  **"تولید بریف با AI"** button alongside the manual form; it polls
+  `GET /topics/{id}/brief` every 3s until the worker finishes (see
+  `useBrief`'s `poll` option in `lib/hooks.ts`) rather than needing a
+  manual refresh.
+- Once a topic's brief is `approved`, a **"تولید مقاله با AI"** row
+  appears in the campaign's Articles section.
+- Competitors page: register a competitor page against a target page and
+  **"تحلیل با AI"** it; a Content Gaps card lists what the analysis found
+  for a chosen target page.
+- Internal Links page: **"تحلیل لینک‌های داخلی با AI"**.
+- A new **AI Jobs** page (`/jobs`) — the queue's read-only view, polling
+  every 3s while anything is `pending`/`running` (`useAiJobs`'s
+  `refetchInterval`) so job status is visible without digging through
+  the API directly.
+
+**Deliberately thin / not in Sprint 3:**
+- The dashboard has no visibility into `ai_jobs.error_message` inline
+  next to the button that triggered it — only on the Jobs page. Failed
+  jobs are visible, just not contextually linked yet.
+- Reports is still a placeholder — Sprint 4.
 - No SSR data fetching: every `(dashboard)` page is a Client Component
   using React Query. Reasonable for an internal, login-gated tool with no
   SEO surface of its own; revisit if that stops being true.

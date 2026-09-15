@@ -29,5 +29,6 @@ class CompetitorPage(Base, TimestampMixin):
     analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     competitor: Mapped["Competitor"] = relationship(back_populates="pages")
+    target_page: Mapped["TargetPage | None"] = relationship()
     source_serp_snapshot: Mapped["SerpSnapshot | None"] = relationship(back_populates="competitor_pages")
     content_gaps: Mapped[list["ContentGap"]] = relationship(back_populates="source_competitor_page")
