@@ -15,10 +15,7 @@ export default function DashboardHomePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">خوش آمدید، {user?.name}</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          خلاصه‌ی وضعیت فعلی. Sprint 3 (AI Agents)، Sprint 4 (SEO Audit + گزارش‌ها) و Sprint 5
-          (اتوماسیون) هنوز پیاده‌سازی نشده‌اند — فعلاً همه‌چیز به‌صورت دستی مدیریت می‌شود.
-        </p>
+        <p className="mt-1 text-sm text-slate-500">خلاصه‌ی وضعیت فعلی پروژه‌ها و کمپین‌های شما.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
