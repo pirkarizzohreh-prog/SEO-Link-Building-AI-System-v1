@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.agent_result import AgentResult
 from app.ai.agents import (
+    auditor_agent,
     brief_agent,
     competitor_intel_agent,
     internal_link_agent,
@@ -36,6 +37,7 @@ _AGENT_DISPATCH: dict[JobType, Callable[[Session, AiJob, BaseLLMClient], AgentRe
     JobType.COMPETITOR_ANALYSIS: competitor_intel_agent.run,
     JobType.BRIEF_GENERATION: brief_agent.run,
     JobType.ARTICLE_WRITE: writer_agent.run,
+    JobType.SEO_AUDIT: auditor_agent.run,
     JobType.INTERNAL_LINK_SUGGESTION: internal_link_agent.run,
 }
 

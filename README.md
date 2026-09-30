@@ -9,7 +9,7 @@
 | **1** | Backend + Database | ✅ انجام شد — [`apps/api`](apps/api) (FastAPI + SQLAlchemy + Alembic، ۲۵ جدول، CRUD کامل غیر از موارد وابسته به Auth/AI) |
 | **2** | Authentication + Dashboard | ✅ انجام شد — JWT auth + Human Approval Layer در [`apps/api`](apps/api)، داشبورد Next.js در [`apps/web`](apps/web) |
 | **3** | AI Agents | ✅ انجام شد — LLM Provider abstraction (OpenAI/Claude)، Job Worker، ۶ ایجنت (Keyword/Topic/Competitor/Brief/Writer/Internal Link) در [`apps/api`](apps/api)؛ دکمه‌های تولید با AI + صفحه AI Jobs در [`apps/web`](apps/web) |
-| 4 | SEO Audit + Reports | برنامه‌ریزی‌شده |
+| **4** | SEO Audit + Reports | ✅ انجام شد — SEO Auditor Agent (چک‌های سخت + نرم + retry خودکار) و Report Manager (`/projects/{id}/report`، `/campaigns/{id}/report`، `/campaigns/{id}/pipeline-stats`) در [`apps/api`](apps/api)؛ دکمه اجرای ممیزی + صفحه گزارش‌ها در [`apps/web`](apps/web) |
 | 5 | Automation | برنامه‌ریزی‌شده |
 
 جزئیات مرزبندی دقیق هر Sprint (چه چیزی الان پیاده شده و چه چیزی عمداً بعداً می‌آید) در [`apps/api/README.md`](apps/api/README.md) و [`apps/web/README.md`](apps/web/README.md).

@@ -10,6 +10,7 @@ import type {
   Article,
   BlogPlatform,
   Campaign,
+  CampaignReport,
   Competitor,
   CompetitorPage,
   ContentBrief,
@@ -17,8 +18,10 @@ import type {
   ContentTemplate,
   InternalLinkSuggestion,
   Keyword,
+  PipelineStats,
   Project,
   ProjectKnowledgeBase,
+  ProjectReport,
   Publication,
   PublishPackage,
   ResolvedLinkPlacementRule,
@@ -279,7 +282,14 @@ export function useArticles(campaignId: number) {
 }
 
 export function useArticle(id: number) {
-  return useQuery({ queryKey: ["articles", id], queryFn: () => api.get<Article>(`/articles/${id}`) });
+  return useQuery({
+    queryKey: ["articles", id],
+    queryFn: () => api.get<Article>(`/articles/${id}`),
+    // The SEO Auditor (Sprint 4) runs async via the job worker — poll while
+    // it's in progress so the page reflects pass/retry/needs_human_review
+    // without a manual refresh, same pattern as useBrief/useAiJobs.
+    refetchInterval: (query) => (query.state.data?.status === "in_audit" ? 3000 : false),
+  });
 }
 
 export function useCreateArticle(campaignId: number) {
@@ -290,10 +300,11 @@ export function useCreateArticle(campaignId: number) {
   });
 }
 
-export function useSeoAuditResults(articleId: number) {
+export function useSeoAuditResults(articleId: number, poll = false) {
   return useQuery({
     queryKey: ["articles", articleId, "seo-audit-results"],
     queryFn: () => api.get<SeoAuditResult[]>(`/articles/${articleId}/seo-audit-results`),
+    refetchInterval: poll ? 3000 : false,
   });
 }
 
@@ -341,6 +352,18 @@ export function usePublishArticle(articleId: number) {
     mutationFn: (data: { blog_platform_id: number; published_url: string; notes?: string }) =>
       api.post<Article>(`/articles/${articleId}/publish`, data),
     onSuccess: () => invalidateArticle(qc, articleId),
+  });
+}
+
+export function useRunAudit(articleId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<AiJob>(`/articles/${articleId}/audit`),
+    onSuccess: () => {
+      invalidateArticle(qc, articleId);
+      qc.invalidateQueries({ queryKey: ["articles", articleId, "seo-audit-results"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
   });
 }
 
@@ -492,5 +515,31 @@ export function useAiJobs() {
       const stillWorking = jobs?.some((j) => j.status === "pending" || j.status === "running");
       return stillWorking ? 3000 : false;
     },
+  });
+}
+
+// --- Reports (Sprint 4 — Report Manager, read-only) ---
+
+export function useProjectReport(projectId: number | null) {
+  return useQuery({
+    queryKey: ["projects", projectId, "report"],
+    queryFn: () => api.get<ProjectReport>(`/projects/${projectId}/report`),
+    enabled: projectId != null,
+  });
+}
+
+export function useCampaignReport(campaignId: number | null) {
+  return useQuery({
+    queryKey: ["campaigns", campaignId, "report"],
+    queryFn: () => api.get<CampaignReport>(`/campaigns/${campaignId}/report`),
+    enabled: campaignId != null,
+  });
+}
+
+export function usePipelineStats(campaignId: number | null) {
+  return useQuery({
+    queryKey: ["campaigns", campaignId, "pipeline-stats"],
+    queryFn: () => api.get<PipelineStats>(`/campaigns/${campaignId}/pipeline-stats`),
+    enabled: campaignId != null,
   });
 }

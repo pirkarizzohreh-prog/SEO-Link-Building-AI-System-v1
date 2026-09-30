@@ -42,6 +42,7 @@ class ArticleRead(ArticleBase):
     word_count: int | None = None
     seo_score: float | None = None
     status: ArticleStatus
+    audit_retry_count: int
     human_approved: bool
     human_approved_by: int | None = None
     human_approved_at: datetime | None = None

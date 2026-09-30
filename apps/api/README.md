@@ -1,4 +1,4 @@
-# API — Sprint 1 + 2 + 3 (Backend + Database, Auth, AI Agents)
+# API — Sprint 1 + 2 + 3 + 4 (Backend + Database, Auth, AI Agents, SEO Audit + Reports)
 
 FastAPI + SQLAlchemy + Alembic backend for the SEO Link Building AI Platform.
 See `/docs` at the repo root for the full design (architecture, DB schema,
@@ -101,11 +101,58 @@ API spec, AI workflow).
   module docstring for what it doesn't cover); revisit before this tool
   is exposed beyond a trusted internal team.
 
-**Deliberately not yet in Sprint 3**: SEO audit execution (`POST
-/articles/{id}/audit`) + the `reports` router — Sprint 4; Playwright
-publish automation — Sprint 5. The Article Writer's output sits at
-`articles.status=draft` until Sprint 4's auditor (or a human, manually)
-moves it forward.
+**Deliberately not yet in Sprint 3**: SEO audit execution + the `reports`
+router — Sprint 4 (below); Playwright publish automation — Sprint 5.
+
+## What's in Sprint 4 (SEO Audit + Reports)
+
+- `POST /articles/{id}/audit` (`app/api/v1/routers/articles.py`):
+  enqueues a `seo_audit` job from `draft` or `needs_human_review`,
+  flipping `articles.status → in_audit` immediately (`202`, same
+  enqueue-then-poll pattern as every other AI job endpoint).
+- `app/ai/agents/auditor_agent.py` — the SEO Auditor, per
+  docs/AI_WORKFLOW.md ("Stage: Audit"). Runs entirely inside one job
+  (not chained across separate jobs):
+  - **Hard checks** (deterministic, no LLM; any failure triggers a
+    retry): word count ≥ brief target, link presence, exact
+    anchor/URL match, link position ≤ the resolved
+    `link_position_max_words`, outbound link count ≤ the resolved
+    `max_outbound_links`.
+  - On a hard-check failure, the article is rewritten **in place**
+    (same brief, same anchor) via `app/ai/agents/writer_agent.
+    generate_draft` — factored out of the Article Writer specifically
+    so both flows share one prompt-builder — with the failed checks'
+    details appended to the prompt as feedback. Up to
+    `auditor_agent.MAX_AUDIT_RETRIES` (2) rewrites, tracked on the new
+    `articles.audit_retry_count` column; exhausting retries lands on
+    `needs_human_review` instead of `reviewed`.
+  - **Soft checks** (never block the pass/fail outcome or trigger a
+    retry — recorded for the human reviewer only): heading structure
+    vs. the brief's outline, keyword density, duplicate similarity to
+    other articles on the same target page (pure-Python Jaccard
+    n-gram similarity — no `pg_trgm`/Postgres-only extension needed),
+    and an LLM tone/forbidden-words check seeded from
+    `app/ai/prompts/seo_audit.md`.
+  - Exactly one `content_status_history(stage=audit)` row is written
+    per run, regardless of how many retries happened inside it — see
+    the module docstring for why.
+- `app/api/v1/routers/reports.py` + `app/services/report_service.py`
+  (Report Manager, docs/AI_WORKFLOW.md "مرحله ۱۰", pure read-only
+  aggregation — no AI involved):
+  - `GET /projects/{id}/report` — total target pages/campaigns,
+    published-article count, distinct target pages covered.
+  - `GET /campaigns/{id}/report` — anchor distribution (resolved
+    target ratio vs. actual `anchor_usage_log` counts), published
+    URLs, and the audit success rate (share of audited articles that
+    reached `reviewed`/`approved`/`published` rather than
+    `needs_human_review`).
+  - `GET /campaigns/{id}/pipeline-stats` — the Pipeline Bottleneck
+    Report: average hours spent in each of the 6 stages, computed by
+    walking each entity's (`topics`/`content_briefs`/`articles`)
+    `content_status_history` rows in order and measuring the gap
+    since the previous row (or the entity's own `created_at` for its
+    first transition).
+- `ArticleRead` now exposes `audit_retry_count`.
 
 ## Running locally
 

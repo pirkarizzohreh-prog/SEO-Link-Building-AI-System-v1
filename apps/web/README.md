@@ -1,4 +1,4 @@
-# Web — Sprint 2 + 3 (Dashboard, AI Agents UI)
+# Web — Sprint 2 + 3 + 4 (Dashboard, AI Agents UI, SEO Audit + Reports UI)
 
 Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 dashboard for the
 SEO Link Building AI Platform. See `/docs` at the repo root for the full
@@ -59,10 +59,27 @@ does (and deliberately doesn't yet).
 - The dashboard has no visibility into `ai_jobs.error_message` inline
   next to the button that triggered it — only on the Jobs page. Failed
   jobs are visible, just not contextually linked yet.
-- Reports is still a placeholder — Sprint 4.
 - No SSR data fetching: every `(dashboard)` page is a Client Component
   using React Query. Reasonable for an internal, login-gated tool with no
   SEO surface of its own; revisit if that stops being true.
+
+## What's in Sprint 4 (SEO Audit + Reports UI)
+
+- Article detail page (`/articles/[id]`): an **"اجرای ممیزی SEO"** button
+  (`POST /articles/{id}/audit`), shown while the article is `draft` or
+  `needs_human_review`. `useArticle` polls every 3s while the status is
+  `in_audit` (same pattern as `useBrief`'s polling), so the page reflects
+  pass/retry/`needs_human_review` automatically once the SEO Auditor job
+  finishes — no manual refresh. The SEO audit results card now shows
+  every hard + soft check the auditor ran (docs/AI_WORKFLOW.md), and the
+  header shows how many times the auditor auto-rewrote the article
+  (`article.audit_retry_count`).
+- A real **Reports page** (`/reports`), replacing the Sprint 3
+  placeholder: pick a project for its summary (target pages, campaigns,
+  links built, pages covered), then a campaign for its report (anchor
+  distribution target vs. actual, audit success rate, published URLs)
+  and the **Pipeline Bottleneck Report** (average hours spent in each of
+  the 6 stages, from `GET /campaigns/{id}/pipeline-stats`).
 
 ## Known trade-off: tokens in `localStorage`
 

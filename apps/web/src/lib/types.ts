@@ -165,6 +165,7 @@ export interface Article {
   word_count: number | null;
   seo_score: number | null;
   status: ArticleStatus;
+  audit_retry_count: number;
   human_approved: boolean;
   human_approved_by: number | null;
   human_approved_at: string | null;
@@ -314,4 +315,37 @@ export interface AiJob {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+}
+
+// --- Reports (Sprint 4 — Report Manager, docs/AI_WORKFLOW.md مرحله ۱۰) ---
+
+export interface ProjectReport {
+  project_id: number;
+  project_name: string;
+  total_target_pages: number;
+  total_campaigns: number;
+  total_links_built: number;
+  pages_covered: number;
+}
+
+export interface CampaignReport {
+  campaign_id: number;
+  campaign_name: string;
+  anchor_distribution_target: Record<string, number>;
+  anchor_distribution_actual: Record<string, number>;
+  published_urls: string[];
+  total_articles: number;
+  audited_articles: number;
+  audit_success_rate: number | null;
+}
+
+export interface StageStat {
+  avg_hours: number;
+  sample_count: number;
+}
+
+export interface PipelineStats {
+  campaign_id: number;
+  campaign_name: string;
+  stages: Record<string, StageStat>;
 }

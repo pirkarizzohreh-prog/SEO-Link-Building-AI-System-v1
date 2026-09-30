@@ -41,6 +41,13 @@ class Article(Base, TimestampMixin, UpdatedAtMixin):
     seo_score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     status: Mapped[ArticleStatus] = mapped_column(sa_enum(ArticleStatus, "article_status"), default=ArticleStatus.DRAFT)
 
+    # How many times the SEO Auditor (Sprint 4) has sent this article back
+    # to be rewritten after failing a hard check — see
+    # docs/AI_WORKFLOW.md ("Stage: Audit"). Capped at MAX_AUDIT_RETRIES in
+    # app/ai/agents/auditor_agent.py; also doubles as the "passed on the
+    # first try" signal for the campaign report's audit success rate.
+    audit_retry_count: Mapped[int] = mapped_column(Integer, default=0)
+
     # Human Approval Layer — see docs/AI_WORKFLOW.md. `human_approved` must
     # only ever be written by app.services.approval_service (added in
     # Sprint 2, once a current-user identity exists); no router in Sprint 1

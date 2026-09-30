@@ -87,6 +87,33 @@ def test_content_brief_and_article_chain(client, campaign, target_page, anchor):
     assert patched.json()["title"] == "Updated title"
 
 
+def test_article_audit_endpoint_enqueues_job_and_gates_on_status(client, campaign, target_page, anchor):
+    article = client.post(
+        f"/api/v1/campaigns/{campaign['id']}/articles",
+        json={
+            "target_page_id": target_page["id"],
+            "anchor_id": anchor["id"],
+            "title": "Draft article",
+            "content": "Full article body here...",
+        },
+    ).json()
+    assert article["audit_retry_count"] == 0
+
+    audit_resp = client.post(f"/api/v1/articles/{article['id']}/audit")
+    assert audit_resp.status_code == 202
+    job = audit_resp.json()
+    assert job["job_type"] == "seo_audit"
+    assert job["reference_table"] == "articles"
+    assert job["reference_id"] == article["id"]
+
+    updated = client.get(f"/api/v1/articles/{article['id']}").json()
+    assert updated["status"] == "in_audit"
+
+    # Already in_audit -> a second call is rejected, not double-enqueued.
+    conflict = client.post(f"/api/v1/articles/{article['id']}/audit")
+    assert conflict.status_code == 409
+
+
 def test_link_placement_rule_resolution_hierarchy(client, project, campaign):
     # No rules at all yet -> falls back to schema defaults.
     resolved = client.get(f"/api/v1/link-placement-rules/resolve?campaign_id={campaign['id']}").json()

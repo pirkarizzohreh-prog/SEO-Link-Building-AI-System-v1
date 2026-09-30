@@ -15,6 +15,7 @@ from app.api.v1.routers import (
     knowledge_base,
     link_placement_rules,
     projects,
+    reports,
     serp_snapshots,
     target_pages,
     topics,
@@ -49,7 +50,6 @@ protected_router.include_router(content_briefs.router)
 protected_router.include_router(articles.router)
 protected_router.include_router(internal_links.router)
 protected_router.include_router(jobs.router)
+protected_router.include_router(reports.router)
 
 api_router.include_router(protected_router)
-
-# NOTE: a `reports` router is intentionally not included yet — Sprint 4.

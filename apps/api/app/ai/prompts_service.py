@@ -26,6 +26,7 @@ _SEED_FILENAMES: dict[PromptAgentType, str] = {
     PromptAgentType.BRIEF_GENERATION: "brief_generation.md",
     PromptAgentType.ARTICLE_WRITE: "article_writer.md",
     PromptAgentType.INTERNAL_LINK_SUGGESTION: "internal_link_suggestion.md",
+    PromptAgentType.SEO_AUDIT: "seo_audit.md",
 }
 
 

@@ -15,6 +15,7 @@ from app.models.publication import Publication, PublicationMethod
 from app.models.publication import PublicationStatus as PubStatus
 from app.models.seo_audit_result import SeoAuditResult
 from app.models.user import User
+from app.models.ai_job import JobType
 from app.schemas.approval import ActionNote, PublishRequest
 from app.schemas.article import (
     ArticleCreate,
@@ -24,7 +25,9 @@ from app.schemas.article import (
     PublishPackage,
     SeoAuditResultRead,
 )
+from app.schemas.job import AiJobRead
 from app.services.approval_service import record_approval
+from app.services.job_service import enqueue_job
 from app.services.publication_service import suggest_blog_platform
 from app.services.status_history_service import record_transition
 from app.utils.crud import CRUDBase
@@ -67,6 +70,26 @@ def list_seo_audit_results(article_id: int, db: Session = Depends(get_db)):
 def list_publications(article_id: int, db: Session = Depends(get_db)):
     crud.get(db, article_id)
     return CRUDBase(Publication).list(db, limit=50, article_id=article_id)
+
+
+@router.post("/articles/{article_id}/audit", response_model=AiJobRead, status_code=202)
+def audit_article(article_id: int, db: Session = Depends(get_db)):
+    """Enqueues the SEO Auditor (Sprint 4) — see docs/AI_WORKFLOW.md
+    ("Stage: Audit"). Valid from `draft` (the normal path out of Writing)
+    or `needs_human_review` (re-auditing after a manual content fix).
+    """
+    article = crud.get(db, article_id)
+    if article.status not in (ArticleStatus.DRAFT, ArticleStatus.NEEDS_HUMAN_REVIEW):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Article {article_id} must be in draft or needs_human_review to run the SEO audit "
+                f"(status={article.status.value})"
+            ),
+        )
+    article.status = ArticleStatus.IN_AUDIT
+    db.commit()
+    return enqueue_job(db, job_type=JobType.SEO_AUDIT, reference_table="articles", reference_id=article.id)
 
 
 @router.post("/articles/{article_id}/approve", response_model=ArticleRead)
@@ -227,6 +250,5 @@ def publish_article(
     return article
 
 
-# NOTE: POST /articles/{id}/audit is an AI job — Sprint 4 (SEO Audit).
-# The automated (Playwright) publish path is Sprint 5, but it reuses this
-# same human_approved gate rather than a separate one.
+# NOTE: The automated (Playwright) publish path is Sprint 5, but it reuses
+# this same human_approved gate rather than a separate one.

@@ -16,6 +16,7 @@ import {
   usePublishArticle,
   usePublishPackage,
   useRejectArticle,
+  useRunAudit,
   useSeoAuditResults,
 } from "@/lib/hooks";
 
@@ -24,10 +25,12 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
   const articleId = Number(id);
 
   const { data: article, isLoading, error } = useArticle(articleId);
-  const { data: auditResults } = useSeoAuditResults(articleId);
+  const isAuditing = article?.status === "in_audit";
+  const { data: auditResults } = useSeoAuditResults(articleId, isAuditing);
   const { data: publications } = usePublications(articleId);
   const approve = useApproveArticle(articleId);
   const reject = useRejectArticle(articleId);
+  const runAudit = useRunAudit(articleId);
   const [actionError, setActionError] = useState<string | null>(null);
 
   if (isLoading) return <Spinner />;
@@ -35,6 +38,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
   if (!article) return null;
 
   const canDecide = article.status === "reviewed" || article.status === "needs_human_review" || article.status === "draft";
+  const canAudit = article.status === "draft" || article.status === "needs_human_review";
 
   async function handleApprove() {
     setActionError(null);
@@ -54,6 +58,15 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
+  async function handleRunAudit() {
+    setActionError(null);
+    try {
+      await runAudit.mutateAsync();
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -61,22 +74,34 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
           <h1 className="text-lg font-bold text-slate-900">{article.title}</h1>
           <div className="mt-1 flex items-center gap-2">
             <ArticleStatusBadge status={article.status} />
+            {article.audit_retry_count > 0 && (
+              <span className="text-xs text-slate-400">
+                (بازنویسی شده توسط SEO Auditor: {article.audit_retry_count} بار)
+              </span>
+            )}
             {article.human_approved && (
               <span className="text-xs font-medium text-emerald-600">✅ تأیید انسانی ثبت شده</span>
             )}
           </div>
         </div>
 
-        {canDecide && !article.human_approved && (
-          <div className="flex shrink-0 gap-2">
-            <Button size="sm" onClick={handleApprove} isLoading={approve.isPending}>
-              تأیید (Human Approval)
+        <div className="flex shrink-0 gap-2">
+          {canAudit && (
+            <Button size="sm" variant="secondary" onClick={handleRunAudit} isLoading={runAudit.isPending}>
+              اجرای ممیزی SEO
             </Button>
-            <Button size="sm" variant="danger" onClick={handleReject} isLoading={reject.isPending}>
-              رد
-            </Button>
-          </div>
-        )}
+          )}
+          {canDecide && !article.human_approved && (
+            <>
+              <Button size="sm" onClick={handleApprove} isLoading={approve.isPending}>
+                تأیید (Human Approval)
+              </Button>
+              <Button size="sm" variant="danger" onClick={handleReject} isLoading={reject.isPending}>
+                رد
+              </Button>
+            </>
+          )}
+        </div>
       </div>
       {actionError && <ErrorBanner message={actionError} />}
 
@@ -99,8 +124,12 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
           <CardTitle>نتایج ممیزی SEO</CardTitle>
         </CardHeader>
         <CardContent>
-          {!auditResults?.length ? (
-            <EmptyState message="هنوز ممیزی‌ای ثبت نشده (SEO Auditor Agent در Sprint 4 اضافه می‌شود)." />
+          {isAuditing ? (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Spinner /> در حال اجرای SEO Auditor Agent (شامل تا ۲ بازنویسی خودکار در صورت نیاز)...
+            </div>
+          ) : !auditResults?.length ? (
+            <EmptyState message="هنوز ممیزی‌ای برای این مقاله اجرا نشده است." />
           ) : (
             <ul className="space-y-1 text-sm">
               {auditResults.map((r) => (
