@@ -33,6 +33,11 @@ class JobStatus(str, enum.Enum):
 class LlmProvider(str, enum.Enum):
     OPENAI = "openai"
     CLAUDE = "claude"
+    # Free-tier fallback for local/dev use when no paid OpenAI/Anthropic
+    # billing is set up — see app/ai/providers/groq_provider.py. Not part
+    # of the original docs/ARCHITECTURE.md design; added so the worker can
+    # actually run without a credit card.
+    GROQ = "groq"
 
 
 class AiJob(Base, TimestampMixin):

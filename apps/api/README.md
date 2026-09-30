@@ -60,6 +60,12 @@ API spec, AI workflow).
   (`app/ai/providers/factory.py`), per docs/ARCHITECTURE.md. Every agent
   is written against `BaseLLMClient`, never a concrete SDK, so tests
   inject `tests/fake_llm_client.py` instead of calling a real API.
+  A third option, `GroqClient` (`groq_provider.py`, checked if neither of
+  the above is set), is **not** part of the original design — it's a
+  free-tier fallback (Groq's API is OpenAI-compatible, so it just points
+  the `openai` SDK at Groq's endpoint) for running the worker without any
+  paid API billing set up. `ai_jobs.cost_estimate` is always 0 while Groq
+  is active, since Groq's free tier has no listed per-token price.
 - `app/jobs/worker.py`: the actual MVP job queue worker — `python -m
   app.jobs.worker` polls `ai_jobs` for `status='pending'` (`FOR UPDATE
   SKIP LOCKED` on Postgres) and runs them one at a time. Exits with a

@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Populated/used from Sprint 3 (AI Agents) onward.
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
+    # Free-tier fallback (app/ai/providers/groq_provider.py) for running
+    # the worker without OpenAI/Anthropic billing configured.
+    GROQ_API_KEY: str | None = None
 
     # Encrypts `blog_platforms.password_encrypted` at rest (Sprint 5,
     # docs/DATABASE_SCHEMA.md: "باید با KMS/Fernet رمزنگاری شود"). Must be
