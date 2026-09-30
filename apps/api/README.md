@@ -1,4 +1,4 @@
-# API — Sprint 1 + 2 + 3 + 4 (Backend + Database, Auth, AI Agents, SEO Audit + Reports)
+# API — Sprint 1 + 2 + 3 + 4 + 5 (Backend + Database, Auth, AI Agents, SEO Audit + Reports, Automation)
 
 FastAPI + SQLAlchemy + Alembic backend for the SEO Link Building AI Platform.
 See `/docs` at the repo root for the full design (architecture, DB schema,
@@ -154,6 +154,71 @@ router — Sprint 4 (below); Playwright publish automation — Sprint 5.
     first transition).
 - `ArticleRead` now exposes `audit_retry_count`.
 
+## What's in Sprint 5 (Automation)
+
+- **Credential encryption** (`app/core/crypto.py`): `blog_platforms.
+  password_encrypted` is Fernet-encrypted (not KMS — a real KMS would be
+  the "غیرضروری" complexity this project explicitly avoids for a
+  single-tenant internal tool). New `FERNET_KEY` setting
+  (`app/core/config.py`); `POST /blog-platforms/{id}/credentials`
+  (admin-only) is the *only* way to write a credential — never through
+  the general `BlogPlatformCreate`/`Update` schemas. `BlogPlatformRead`
+  exposes `has_automation_credentials` (a bool) instead of the secret
+  itself.
+- **`app/automation/`** — Playwright publishers, per docs/
+  PROJECT_STRUCTURE.md's `automation/publishers/base_publisher.py` /
+  `<platform>_publisher.py` split, behind one `BasePublisher` interface
+  (mirrors `app/ai/providers/base.py`'s `BaseLLMClient` shape on
+  purpose — same reason: swappable, and tests inject `tests/
+  fake_publisher.py` instead of a real browser).
+  - **Deviation from docs/PROJECT_STRUCTURE.md**: that doc sketches
+    `automation/` as a top-level directory, kept separate in case it
+    ever needs a different language/runtime. We use Playwright's Python
+    bindings (same language as the rest of the backend), so there's no
+    runtime split to justify a second top-level package and Docker
+    build context; `app/automation/` ships in the existing `worker`
+    image (same image as `api`) with zero build changes. See the
+    module's own docstring for the full reasoning.
+  - `wordpress_publisher.py`: the only publisher implemented — logs
+    into a self-hosted WordPress's classic editor (**"Text"/raw-HTML
+    mode, not Gutenberg** — see its docstring for why), fills
+    title/content, publishes, and reads back the live URL.
+  - `markdown_to_html.py`: converts an article's Markdown body (H2/H3 +
+    `[text](url)` links — the only syntax the Article Writer prompt
+    ever produces) into the HTML WordPress's Text-mode editor expects.
+    Stdlib-only, same spirit as `app/ai/html_extract.py`.
+- `app/ai/agents/publish_agent.py` — the `publish` job. No LLM call
+  (docs/AI_WORKFLOW.md marks Publisher "بدون LLM"); resolves its
+  publisher via `app.automation.publishers.factory.get_publisher()`
+  (monkeypatched in tests, same pattern as `competitor_intel_agent`'s
+  `fetch_html`). Repeats the `human_approved` check `POST /articles/
+  {id}/publish-automated` already made — defense in depth, per docs/
+  AI_WORKFLOW.md and docs/DATABASE_SCHEMA.md's hard rule that this gate
+  lives at the service layer, not one call site. A failed attempt
+  records a `publications(status=failed)` row and re-raises so
+  `ai_jobs.error_message` captures it — automation failures are never
+  silent.
+- `POST /articles/{id}/publish-automated` (new, separate from the
+  existing manual `POST /articles/{id}/publish` — kept as two endpoints
+  rather than overloading one, so each has one predictable response
+  shape) enqueues the job after checking `human_approved` and that the
+  chosen (or suggested) blog platform actually has credentials
+  configured.
+- `GET /articles/{id}/status-history` — a docs/API_SPEC.md endpoint from
+  Sprint 2 that nothing had implemented yet; added here since Sprint 5's
+  own testing needed real visibility into an article's stage
+  transitions anyway.
+- Dockerfile: `playwright install --with-deps chromium`, since `worker`
+  shares `api`'s image.
+
+**Known limitations** (see the code's own docstrings for detail): only
+one publisher (self-hosted WordPress, classic editor); no SSRF guard on
+`blog_platforms.url`/`login_url` the way `safe_fetch.py` guards
+Competitor Intelligence's fetches — these are admin-configured trusted
+infrastructure, not user-submitted URLs an AI agent processes, so the
+threat model differs; best-effort category selection (skipped, not
+failed, if the theme's category checkbox label doesn't match).
+
 ## Running locally
 
 ### With Docker Compose (from the repo root)
@@ -171,6 +236,7 @@ API: http://localhost:8000 · Swagger UI: http://localhost:8000/docs
 cd apps/api
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+playwright install chromium   # only needed to actually run the publish job
 
 # point at a local Postgres (see docker-compose.yml for the expected user/db)
 export DATABASE_URL="postgresql+psycopg2://seo:seo@localhost:5432/seo_link_building"

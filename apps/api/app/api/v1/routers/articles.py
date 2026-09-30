@@ -10,13 +10,13 @@ from app.db.session import get_db
 from app.models.approval import ApprovalDecision, ApprovalType
 from app.models.article import Article, ArticleStatus
 from app.models.blog_platform import BlogPlatform
-from app.models.content_status_history import PipelineStage
+from app.models.ai_job import JobType
+from app.models.content_status_history import ContentStatusHistory, PipelineStage
 from app.models.publication import Publication, PublicationMethod
 from app.models.publication import PublicationStatus as PubStatus
 from app.models.seo_audit_result import SeoAuditResult
 from app.models.user import User
-from app.models.ai_job import JobType
-from app.schemas.approval import ActionNote, PublishRequest
+from app.schemas.approval import ActionNote, PublishAutomatedRequest, PublishRequest
 from app.schemas.article import (
     ArticleCreate,
     ArticleRead,
@@ -25,6 +25,7 @@ from app.schemas.article import (
     PublishPackage,
     SeoAuditResultRead,
 )
+from app.schemas.content_status_history import ContentStatusHistoryRead
 from app.schemas.job import AiJobRead
 from app.services.approval_service import record_approval
 from app.services.job_service import enqueue_job
@@ -70,6 +71,18 @@ def list_seo_audit_results(article_id: int, db: Session = Depends(get_db)):
 def list_publications(article_id: int, db: Session = Depends(get_db)):
     crud.get(db, article_id)
     return CRUDBase(Publication).list(db, limit=50, article_id=article_id)
+
+
+@router.get("/articles/{article_id}/status-history", response_model=list[ContentStatusHistoryRead])
+def get_article_status_history(article_id: int, db: Session = Depends(get_db)):
+    """docs/API_SPEC.md: "تاریخچه‌ی کامل عبور این مقاله از ۶ مرحله"."""
+    crud.get(db, article_id)
+    return (
+        db.query(ContentStatusHistory)
+        .filter(ContentStatusHistory.entity_table == "articles", ContentStatusHistory.entity_id == article_id)
+        .order_by(ContentStatusHistory.created_at.asc())
+        .all()
+    )
 
 
 @router.post("/articles/{article_id}/audit", response_model=AiJobRead, status_code=202)
@@ -250,5 +263,48 @@ def publish_article(
     return article
 
 
-# NOTE: The automated (Playwright) publish path is Sprint 5, but it reuses
-# this same human_approved gate rather than a separate one.
+@router.post("/articles/{article_id}/publish-automated", response_model=AiJobRead, status_code=202)
+def publish_article_automated(
+    article_id: int,
+    payload: PublishAutomatedRequest = PublishAutomatedRequest(),
+    db: Session = Depends(get_db),
+):
+    """Sprint 5 — Playwright automation path. Same `human_approved` gate as
+    the manual `/publish` above (checked again inside the job itself —
+    see app/ai/agents/publish_agent.py's module docstring), plus a check
+    that the chosen blog actually has automation credentials configured.
+    """
+    article = crud.get(db, article_id)
+    if not article.human_approved:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot publish: article has not been approved via POST /articles/{id}/approve.",
+        )
+    if article.status == ArticleStatus.PUBLISHED:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Article is already published.")
+
+    if payload.blog_platform_id is not None:
+        blog_platform = db.get(BlogPlatform, payload.blog_platform_id)
+        if blog_platform is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog platform not found")
+    else:
+        blog_platform = suggest_blog_platform(db)
+        if blog_platform is None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No active blog platform available")
+
+    if not blog_platform.has_automation_credentials:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Blog platform '{blog_platform.name}' has no automation credentials — "
+                "set them via POST /blog-platforms/{id}/credentials first."
+            ),
+        )
+
+    return enqueue_job(
+        db,
+        job_type=JobType.PUBLISH,
+        reference_table="articles",
+        reference_id=article.id,
+        input_payload={"blog_platform_id": blog_platform.id},
+    )

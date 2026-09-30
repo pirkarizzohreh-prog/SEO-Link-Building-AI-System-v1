@@ -33,3 +33,11 @@ class BlogPlatform(Base, TimestampMixin):
 
     articles: Mapped[list["Article"]] = relationship(back_populates="blog_platform")
     publications: Mapped[list["Publication"]] = relationship(back_populates="blog_platform")
+
+    @property
+    def has_automation_credentials(self) -> bool:
+        """Whether POST /blog-platforms/{id}/credentials (Sprint 5) has been
+        called for this platform — the automated publish job refuses to run
+        without both, so the UI can surface this before an admin tries.
+        """
+        return bool(self.username and self.password_encrypted)

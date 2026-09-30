@@ -9,6 +9,12 @@ RUN apt-get update \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Only `worker` actually launches a browser (app/automation/, Sprint 5),
+# but it shares this image with `api` (see docker-compose.yml), so the
+# browser + its OS deps are installed here once rather than maintaining a
+# second Dockerfile for one process.
+RUN playwright install --with-deps chromium
+
 COPY . .
 
 EXPOSE 8000

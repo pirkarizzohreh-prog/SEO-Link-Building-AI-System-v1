@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
 
+    # Encrypts `blog_platforms.password_encrypted` at rest (Sprint 5,
+    # docs/DATABASE_SCHEMA.md: "باید با KMS/Fernet رمزنگاری شود"). Must be
+    # a valid `Fernet.generate_key()` value — this default is fine for
+    # local dev/tests only; override it in any real deployment, same as
+    # SECRET_KEY, and never rotate it without re-encrypting existing rows.
+    FERNET_KEY: str = "MlhMxGHc5GuV4bDHLt0yoTutV43PAUR8FDFKontORfc="
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

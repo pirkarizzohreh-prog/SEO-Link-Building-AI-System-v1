@@ -17,5 +17,11 @@ openai==1.58.1
 anthropic==0.42.0
 httpx==0.28.1
 
+# SEO Audit / Reports (Sprint 4) — no new deps
+
+# Automation (Sprint 5)
+cryptography==50.0.1
+playwright==1.63.0
+
 # testing
 pytest==8.3.4

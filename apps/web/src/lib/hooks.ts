@@ -15,6 +15,7 @@ import type {
   CompetitorPage,
   ContentBrief,
   ContentGap,
+  ContentStatusHistoryEntry,
   ContentTemplate,
   InternalLinkSuggestion,
   Keyword,
@@ -355,6 +356,26 @@ export function usePublishArticle(articleId: number) {
   });
 }
 
+export function useRunAutomatedPublish(articleId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (blogPlatformId?: number) =>
+      api.post<AiJob>(`/articles/${articleId}/publish-automated`, {
+        blog_platform_id: blogPlatformId ?? null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
+export function useArticleStatusHistory(articleId: number) {
+  return useQuery({
+    queryKey: ["articles", articleId, "status-history"],
+    queryFn: () => api.get<ContentStatusHistoryEntry[]>(`/articles/${articleId}/status-history`),
+  });
+}
+
 export function useRunAudit(articleId: number) {
   const qc = useQueryClient();
   return useMutation({
@@ -377,6 +398,15 @@ export function useCreateBlogPlatform() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<BlogPlatform>) => api.post<BlogPlatform>("/blog-platforms", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["blog-platforms"] }),
+  });
+}
+
+export function useSetBlogPlatformCredentials(blogPlatformId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { username: string; password: string; login_url?: string }) =>
+      api.post<BlogPlatform>(`/blog-platforms/${blogPlatformId}/credentials`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["blog-platforms"] }),
   });
 }

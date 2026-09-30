@@ -11,14 +11,26 @@ import { getErrorMessage } from "@/lib/get-error-message";
 import {
   useApproveArticle,
   useArticle,
+  useArticleStatusHistory,
   useBlogPlatforms,
   usePublications,
   usePublishArticle,
   usePublishPackage,
   useRejectArticle,
   useRunAudit,
+  useRunAutomatedPublish,
   useSeoAuditResults,
 } from "@/lib/hooks";
+
+const STAGE_LABEL: Record<string, string> = {
+  idea: "Idea",
+  brief: "Brief",
+  writing: "Writing",
+  audit: "Audit",
+  human_review: "Human Review",
+  published: "Published",
+  rejected: "Rejected",
+};
 
 export default function ArticleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -28,6 +40,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
   const isAuditing = article?.status === "in_audit";
   const { data: auditResults } = useSeoAuditResults(articleId, isAuditing);
   const { data: publications } = usePublications(articleId);
+  const { data: statusHistory } = useArticleStatusHistory(articleId);
   const approve = useApproveArticle(articleId);
   const reject = useRejectArticle(articleId);
   const runAudit = useRunAudit(articleId);
@@ -167,6 +180,31 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>تاریخچه مراحل (Pipeline)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!statusHistory?.length ? (
+            <EmptyState message="هنوز رکوردی در تاریخچه‌ی این مقاله ثبت نشده است." />
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {statusHistory.map((h) => (
+                <li key={h.id} className="flex items-center gap-2">
+                  <span className="font-medium text-slate-800">{STAGE_LABEL[h.stage] ?? h.stage}</span>
+                  <span className="text-slate-400">
+                    {h.from_status ?? "—"} → {h.to_status}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    ({h.actor_type === "ai" ? "AI" : "کاربر"} · {new Date(h.created_at).toLocaleString("fa-IR")})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -183,9 +221,12 @@ function PublishCard({
   const { data: pkg } = usePublishPackage(articleId, humanApproved && !published);
   const { data: blogPlatforms } = useBlogPlatforms();
   const publish = usePublishArticle(articleId);
+  const runAutomatedPublish = useRunAutomatedPublish(articleId);
   const [blogPlatformId, setBlogPlatformId] = useState("");
+  const [automatedBlogPlatformId, setAutomatedBlogPlatformId] = useState("");
   const [publishedUrl, setPublishedUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [automatedNotice, setAutomatedNotice] = useState<string | null>(null);
 
   if (published) return null;
 
@@ -207,6 +248,18 @@ function PublishCard({
     setError(null);
     try {
       await publish.mutateAsync({ blog_platform_id: Number(blogPlatformId), published_url: publishedUrl });
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  async function handleAutomatedPublish(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setAutomatedNotice(null);
+    try {
+      await runAutomatedPublish.mutateAsync(automatedBlogPlatformId ? Number(automatedBlogPlatformId) : undefined);
+      setAutomatedNotice("درخواست ثبت شد — نتیجه پس از پردازش توسط Worker در صفحه AI Jobs و تاریخچه انتشار این مقاله ظاهر می‌شود.");
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -258,6 +311,31 @@ function PublishCard({
             ثبت انتشار
           </Button>
         </form>
+
+        <div className="border-t border-slate-100 pt-4">
+          <h3 className="mb-2 text-sm font-semibold text-slate-700">انتشار خودکار (Playwright — Sprint 5)</h3>
+          <form onSubmit={handleAutomatedPublish} className="flex flex-wrap items-end gap-2">
+            <div className="min-w-48">
+              <Label>وبلاگ (اختیاری — در صورت خالی بودن، خودکار انتخاب می‌شود)</Label>
+              <Select value={automatedBlogPlatformId} onChange={(e) => setAutomatedBlogPlatformId(e.target.value)}>
+                <option value="">انتخاب خودکار...</option>
+                {blogPlatforms?.map((b) => (
+                  <option key={b.id} value={b.id} disabled={!b.has_automation_credentials}>
+                    {b.name} {b.has_automation_credentials ? "" : "(بدون اطلاعات ورود)"}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <Button type="submit" variant="secondary" isLoading={runAutomatedPublish.isPending}>
+              انتشار خودکار با AI
+            </Button>
+          </form>
+          {automatedNotice && <p className="mt-2 text-xs text-emerald-600">{automatedNotice}</p>}
+          <p className="mt-2 text-xs text-slate-400">
+            نیازمند وبلاگی با اطلاعات ورود تنظیم‌شده (صفحه «وبلاگ‌های انتشار» ← «تنظیم اطلاعات ورود»).
+          </p>
+        </div>
+
         {error && <ErrorBanner message={error} />}
       </CardContent>
     </Card>

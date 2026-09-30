@@ -1,4 +1,4 @@
-# Web — Sprint 2 + 3 + 4 (Dashboard, AI Agents UI, SEO Audit + Reports UI)
+# Web — Sprint 2 + 3 + 4 + 5 (Dashboard, AI Agents UI, SEO Audit + Reports UI, Automation UI)
 
 Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 dashboard for the
 SEO Link Building AI Platform. See `/docs` at the repo root for the full
@@ -80,6 +80,29 @@ does (and deliberately doesn't yet).
   distribution target vs. actual, audit success rate, published URLs)
   and the **Pipeline Bottleneck Report** (average hours spent in each of
   the 6 stages, from `GET /campaigns/{id}/pipeline-stats`).
+
+## What's in Sprint 5 (Automation UI)
+
+- Blog Platforms page: an **"اتوماسیون"** column (تنظیم‌شده/تنظیم‌نشده)
+  and an admin-only **"تنظیم اطلاعات ورود"** button opening a modal for
+  username/password/login URL — `POST /blog-platforms/{id}/credentials`.
+  The password field is never pre-filled or echoed back; the page only
+  ever learns whether credentials exist (`has_automation_credentials`),
+  never their value.
+- Article detail page: a second, **"انتشار خودکار (Playwright)"** section
+  next to the existing manual publish form, letting an approved article
+  be published via `POST /articles/{id}/publish-automated` (optionally
+  picking a specific blog; platforms without credentials are shown
+  disabled in the dropdown). Since the actual Playwright run happens in
+  the background worker, this only enqueues the job and points to the
+  Jobs page / this article's own history for the result — there's no
+  synchronous "in progress" state to poll the way `/audit` has.
+- A new **"تاریخچه مراحل (Pipeline)"** card on the article page —
+  `GET /articles/{id}/status-history` — showing every stage transition
+  this article has been through (Idea → ... → Published), who/what made
+  it (AI or a named user) and when; this is what makes an automated
+  publish's `approved → published` transition visible without leaving
+  the page.
 
 ## Known trade-off: tokens in `localStorage`
 

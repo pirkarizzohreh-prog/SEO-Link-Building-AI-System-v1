@@ -13,3 +13,12 @@ class PublishRequest(BaseModel):
     blog_platform_id: int
     published_url: str
     notes: str | None = None
+
+
+class PublishAutomatedRequest(BaseModel):
+    """POST /articles/{id}/publish-automated — Sprint 5. `blog_platform_id`
+    is optional; omit it to let `suggest_blog_platform` pick one, same as
+    the manual publish-package flow.
+    """
+
+    blog_platform_id: int | None = None

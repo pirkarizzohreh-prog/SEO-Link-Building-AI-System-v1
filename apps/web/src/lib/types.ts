@@ -91,6 +91,7 @@ export interface BlogPlatform {
   username: string | null;
   login_url: string | null;
   category_default: string | null;
+  has_automation_credentials: boolean;
   last_publish_date: string | null;
 }
 
@@ -348,4 +349,21 @@ export interface PipelineStats {
   campaign_id: number;
   campaign_name: string;
   stages: Record<string, StageStat>;
+}
+
+// --- Content Status History (Sprint 5 — GET /articles/{id}/status-history) ---
+
+export type PipelineStage = "idea" | "brief" | "writing" | "audit" | "human_review" | "published" | "rejected";
+
+export interface ContentStatusHistoryEntry {
+  id: number;
+  entity_table: string;
+  entity_id: number;
+  stage: PipelineStage;
+  from_status: string | null;
+  to_status: string;
+  actor_type: "ai" | "user";
+  actor_id: number | null;
+  note: string | null;
+  created_at: string;
 }

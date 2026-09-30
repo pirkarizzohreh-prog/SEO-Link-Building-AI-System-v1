@@ -2,18 +2,23 @@
 
 import { useState, type FormEvent } from "react";
 
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorBanner, Spinner } from "@/components/ui/feedback";
 import { Input, Label } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Table, Td, Th, Thead, Tr } from "@/components/ui/table";
+import { useAuth } from "@/lib/auth-context";
 import { getErrorMessage } from "@/lib/get-error-message";
-import { useBlogPlatforms, useCreateBlogPlatform } from "@/lib/hooks";
+import { useBlogPlatforms, useCreateBlogPlatform, useSetBlogPlatformCredentials } from "@/lib/hooks";
+import type { BlogPlatform } from "@/lib/types";
 
 export default function BlogPlatformsPage() {
+  const { user: currentUser } = useAuth();
   const { data: platforms, isLoading, error } = useBlogPlatforms();
   const [modalOpen, setModalOpen] = useState(false);
+  const [credentialsTarget, setCredentialsTarget] = useState<BlogPlatform | null>(null);
+  const isAdmin = currentUser?.role === "admin";
 
   return (
     <div className="space-y-4">
@@ -35,6 +40,8 @@ export default function BlogPlatformsPage() {
                 <Th>آدرس</Th>
                 <Th>آخرین انتشار</Th>
                 <Th>وضعیت</Th>
+                <Th>اتوماسیون</Th>
+                <Th></Th>
               </Tr>
             </Thead>
             <tbody>
@@ -46,6 +53,20 @@ export default function BlogPlatformsPage() {
                   <Td>
                     <StatusBadge status={b.status} />
                   </Td>
+                  <Td>
+                    {b.has_automation_credentials ? (
+                      <Badge tone="green">تنظیم‌شده</Badge>
+                    ) : (
+                      <Badge tone="slate">تنظیم‌نشده</Badge>
+                    )}
+                  </Td>
+                  <Td>
+                    {isAdmin && (
+                      <Button size="sm" variant="secondary" onClick={() => setCredentialsTarget(b)}>
+                        تنظیم اطلاعات ورود
+                      </Button>
+                    )}
+                  </Td>
                 </Tr>
               ))}
             </tbody>
@@ -54,6 +75,9 @@ export default function BlogPlatformsPage() {
       )}
 
       <CreateBlogPlatformModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      {credentialsTarget && (
+        <CredentialsModal blogPlatform={credentialsTarget} onClose={() => setCredentialsTarget(null)} />
+      )}
     </div>
   );
 }
@@ -79,7 +103,7 @@ function CreateBlogPlatformModal({ open, onClose }: { open: boolean; onClose: ()
     <Modal open={open} onClose={onClose} title="وبلاگ جدید">
       <form onSubmit={handleSubmit} className="space-y-3">
         <p className="text-xs text-slate-400">
-          اتصال ورود/رمز عبور و اتوماسیون انتشار (Playwright) در Sprint 5 اضافه می‌شود؛ فعلاً فقط اطلاعات پایه.
+          اطلاعات ورود برای اتوماسیون انتشار (Playwright) را بعد از ایجاد، از دکمه «تنظیم اطلاعات ورود» وارد کنید.
         </p>
         <div>
           <Label>نام وبلاگ</Label>
@@ -96,6 +120,72 @@ function CreateBlogPlatformModal({ open, onClose }: { open: boolean; onClose: ()
           </Button>
           <Button type="submit" isLoading={createBlogPlatform.isPending}>
             ایجاد
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function CredentialsModal({ blogPlatform, onClose }: { blogPlatform: BlogPlatform; onClose: () => void }) {
+  const setCredentials = useSetBlogPlatformCredentials(blogPlatform.id);
+  const [form, setForm] = useState({
+    username: blogPlatform.username ?? "",
+    password: "",
+    login_url: blogPlatform.login_url ?? "",
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await setCredentials.mutateAsync({
+        username: form.username,
+        password: form.password,
+        ...(form.login_url ? { login_url: form.login_url } : {}),
+      });
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`اطلاعات ورود — ${blogPlatform.name}`}>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <p className="text-xs text-slate-400">
+          این اطلاعات فقط برای اتوماسیون انتشار با Playwright استفاده می‌شود و به‌صورت رمزنگاری‌شده (Fernet) ذخیره
+          می‌شود — هرگز به‌صورت متن ساده در دیتابیس یا پاسخ API قابل مشاهده نیست.
+        </p>
+        <div>
+          <Label>نام کاربری</Label>
+          <Input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+        </div>
+        <div>
+          <Label>رمز عبور</Label>
+          <Input
+            required
+            type="password"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label>آدرس ورود (اختیاری — پیش‌فرض: آدرس وبلاگ + /wp-login.php)</Label>
+          <Input
+            type="url"
+            value={form.login_url}
+            onChange={(e) => setForm({ ...form, login_url: e.target.value })}
+          />
+        </div>
+        {error && <ErrorBanner message={error} />}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            انصراف
+          </Button>
+          <Button type="submit" isLoading={setCredentials.isPending}>
+            ذخیره
           </Button>
         </div>
       </form>

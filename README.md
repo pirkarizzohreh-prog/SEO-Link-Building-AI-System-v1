@@ -10,7 +10,7 @@
 | **2** | Authentication + Dashboard | ✅ انجام شد — JWT auth + Human Approval Layer در [`apps/api`](apps/api)، داشبورد Next.js در [`apps/web`](apps/web) |
 | **3** | AI Agents | ✅ انجام شد — LLM Provider abstraction (OpenAI/Claude)، Job Worker، ۶ ایجنت (Keyword/Topic/Competitor/Brief/Writer/Internal Link) در [`apps/api`](apps/api)؛ دکمه‌های تولید با AI + صفحه AI Jobs در [`apps/web`](apps/web) |
 | **4** | SEO Audit + Reports | ✅ انجام شد — SEO Auditor Agent (چک‌های سخت + نرم + retry خودکار) و Report Manager (`/projects/{id}/report`، `/campaigns/{id}/report`، `/campaigns/{id}/pipeline-stats`) در [`apps/api`](apps/api)؛ دکمه اجرای ممیزی + صفحه گزارش‌ها در [`apps/web`](apps/web) |
-| 5 | Automation | برنامه‌ریزی‌شده |
+| **5** | Automation | ✅ انجام شد — رمزنگاری اطلاعات ورود وبلاگ (Fernet)، اتوماسیون انتشار با Playwright (`app/automation/`, `publish_agent`) و `GET /articles/{id}/status-history` در [`apps/api`](apps/api)؛ فرم اطلاعات ورود + دکمه انتشار خودکار در [`apps/web`](apps/web) |
 
 جزئیات مرزبندی دقیق هر Sprint (چه چیزی الان پیاده شده و چه چیزی عمداً بعداً می‌آید) در [`apps/api/README.md`](apps/api/README.md) و [`apps/web/README.md`](apps/web/README.md).
 

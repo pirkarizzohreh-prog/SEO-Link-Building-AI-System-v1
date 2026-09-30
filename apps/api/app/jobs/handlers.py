@@ -22,6 +22,7 @@ from app.ai.agents import (
     competitor_intel_agent,
     internal_link_agent,
     keyword_agent,
+    publish_agent,
     topic_agent,
     writer_agent,
 )
@@ -39,6 +40,7 @@ _AGENT_DISPATCH: dict[JobType, Callable[[Session, AiJob, BaseLLMClient], AgentRe
     JobType.ARTICLE_WRITE: writer_agent.run,
     JobType.SEO_AUDIT: auditor_agent.run,
     JobType.INTERNAL_LINK_SUGGESTION: internal_link_agent.run,
+    JobType.PUBLISH: publish_agent.run,
 }
 
 # keyword_intel -> topic_gen is the only automatic chain today (docs/
